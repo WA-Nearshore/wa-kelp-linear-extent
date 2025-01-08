@@ -28,6 +28,10 @@ arcpy.env.overwriteOutput = True
 containers = "LinearExtent.gdb\\kelp_containers_v1_fixsitecode"
 kelp_data_path = "kelp_data_sources\\fixed_wing_aerial_imagery\\"
 
+
+# MAKE A LIST OF TOUPLES
+for x,y  = [(fp, fc), (type, ype)]
+
 # footprints: 
 ADM_fp = kelp_data_path + "Admiralty_Inlet_Flight_Index.gdb\\Flight_Index\\Ortho_Tiles"
 NCO_fp = kelp_data_path + "220158_Open_Coast_Flight_Index.gdb\\Flight_Index\\Ortho_Tile_Index"
