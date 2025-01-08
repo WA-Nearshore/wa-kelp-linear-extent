@@ -3,6 +3,8 @@
 # Gray McKenna
 # 2024-08-30
 
+### DEPRECATED: USE fixedwing_poly_synth.py
+
 # Classified Imagery from Fixed Wing Aerial Imagery Program
 # Copied ADM 2024-8-30, SQX & SWH 2024-09-04
 # Classified rasters: K:\kelp\fixed_wing_aerial_imagery\imagery_products\2022\classified_rasters
