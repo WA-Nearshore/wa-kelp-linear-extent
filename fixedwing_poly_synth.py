@@ -17,8 +17,11 @@ import numpy as np
 from dbfread import DBF
 from arcgis.features import GeoAccessor, GeoSeriesAccessor
 
-project_folder = r"E:\DNR_files\Documents\ArcGIS\Projects\LinearExtent"
-arcpy.env.workspace = project_folder
+# store parent folder workspace in function 
+def reset_ws(): 
+    arcpy.env.workspace = os.getcwd()
+
+reset_ws()
 
 # Set overwrite output to true
 arcpy.env.overwriteOutput = True
