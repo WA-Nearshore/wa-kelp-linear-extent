@@ -28,12 +28,12 @@ arcpy.env.overwriteOutput = True
 
 #### DEFINE INPUTS ####
 
-containers = "LinearExtent.gdb\\kelp_containers_v1_fixsitecode"
+containers = "LinearExtent.gdb\\kelp_containers_v2"
 kelp_data_path = "kelp_data_sources\\fixed_wing_aerial_imagery\\"
 
 
 # MAKE A LIST OF TOUPLES
-for x,y  = [(fp, fc), (type, ype)]
+#for x,y  = [(fp, fc), (type, ype)]
 
 # footprints: 
 ADM_fp = kelp_data_path + "Admiralty_Inlet_Flight_Index.gdb\\Flight_Index\\Ortho_Tiles"
@@ -44,7 +44,6 @@ SJI_fp = kelp_data_path + "220282_San_Juan_Flight_Index.gdb\\Flight_Index\\Ortho
 SQX_fp = kelp_data_path + "220158_Squaxin_Flight_Index.gdb\\Flight_Index\\Ortho_Tile_Index"
 SWH_fp = kelp_data_path + "220158_Saratoga_Whidbey_Flight_Index.gdb\\Flight_Index\\Ortho_Tile_Index"
 TAC_fp = kelp_data_path + "220158_Tacoma_Narrows_Flight_Index.gdb\\Flight_Index\\Ortho_Tile_Index"
-
 AQR_fp = kelp_data_path + "220282_Aquatic_Reserves_Flight_Index.gdb\\Flight_Index\\Ortho_Tile_Index"
 
 # polygons: 
@@ -129,7 +128,7 @@ arcpy.env.workspace = "scratch.gdb"
 sumwithin_fcs = arcpy.ListFeatureClasses("sum*")
 sumwithin_fcs = ["scratch.gdb\\" + fc for fc in sumwithin_fcs]
 print(sumwithin_fcs)
-arcpy.env.workspace = project_folder
+reset_ws()
 
 # create function to convert fcs to dfs and store in list
 def df_from_fc(in_features, year):

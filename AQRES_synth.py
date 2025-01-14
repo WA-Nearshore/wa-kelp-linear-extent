@@ -25,7 +25,7 @@ reset_ws()
 #### Load Data ####
 
 # Containers
-containers = "LinearExtent.gdb\\kelp_containers_v1_fixsitecode"
+containers = "LinearExtent.gdb\\kelp_containers_v2"
 print("Using " + containers + " as container features")
 
 # Set workspace to gdb with kelp data sources

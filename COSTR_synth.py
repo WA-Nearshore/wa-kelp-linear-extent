@@ -7,6 +7,7 @@
 # link: https://fortress.wa.gov/dnr/adminsa/gisdata/datadownload/kelp_canopy_strait_coast.zip
 
 import arcpy
+import os
 import arcpy.conversion
 import pandas as pd
 import numpy as np
@@ -16,17 +17,15 @@ from arcgis.features import GeoAccessor, GeoSeriesAccessor
 arcpy.env.overwriteOutput = True
 
 # store parent folder workspace in function 
-project_folder = r"D:\DNR_files\Documents\ArcGIS\Projects\LinearExtent"
-
 def reset_ws(): 
-    arcpy.env.workspace = project_folder
+    arcpy.env.workspace = os.getcwd()
 
 reset_ws()
 
 #### Load Data ####
 
 # Containers
-containers = "LinearExtent.gdb\\kelp_containers_v1_fixsitecode"
+containers = "LinearExtent.gdb\\kelp_containers_v2"
 
 print("Using " + containers + " as container features")
 

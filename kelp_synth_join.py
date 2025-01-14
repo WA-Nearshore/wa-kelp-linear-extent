@@ -6,15 +6,14 @@ import arcpy
 import arcpy.management
 import pandas as pd
 from pathlib import Path
+import os
 
 #### Set Environment ####
 arcpy.env.overwriteOutput = True
 
 # store parent folder workspace in function 
-project_folder = r"D:\DNR_files\Documents\ArcGIS\Projects\LinearExtent"
-
 def reset_ws(): 
-    arcpy.env.workspace = project_folder
+    arcpy.env.workspace = os.getcwd()
 
 reset_ws()
 
@@ -27,21 +26,22 @@ print("Synth results tables available:")
 for t in tbls: print(t)
 
 # linear extent fc 
-lines = "LinearExtent.gdb//all_lines_clean"
+lines = "LinearExtent.gdb//all_lines_clean_v2"
 print("Using " + lines + " as line segment feature class")
+
+#### Create function to read a list of csv tbls to pandas dataframes ####
+def csv_to_pd(tbls):
+    
+    dfs = []
+
+    for t in tbls:
+        df = pd.read_csv(t)
+        dfs.append(df)
+
+    return dfs
 
 #### Define main function ####
 def kelp_synth_join(tbls, lines):
-    #### Read csv tbls to pandas dataframes ####
-    def csv_to_pd(tbls):
-        
-        dfs = []
-
-        for t in tbls:
-            df = pd.read_csv(t)
-            dfs.append(df)
-
-        return dfs
 
     synth_dfs = csv_to_pd(tbls)
 
