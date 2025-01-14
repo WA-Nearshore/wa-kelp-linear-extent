@@ -11,15 +11,14 @@ import arcpy.conversion
 import pandas as pd
 import numpy as np
 from arcgis.features import GeoAccessor, GeoSeriesAccessor
+import os
 
 # Set environment
 arcpy.env.overwriteOutput = True
 
 # store parent folder workspace in function 
-project_folder = r"D:\DNR_files\Documents\ArcGIS\Projects\LinearExtent"
-
 def reset_ws(): 
-    arcpy.env.workspace = project_folder
+    arcpy.env.workspace = os.getcwd()
 
 reset_ws()
 
