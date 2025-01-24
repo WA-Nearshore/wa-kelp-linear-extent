@@ -2,15 +2,19 @@
 # Gray McKenna
 # 2024-08-15
 
+# Data copied from K:\kelp\bull_kelp_kayak\2024\data_processing\gdb\DNR_bull_kelp_kayak_2024.gdb on 2024-01-14...
+# not all the bed polygons are done yet though
 
-# NEEDS TO BE MODIFIED TO USE BEST DATASOURCE
-# NEED TO QAQC RESULTS
+# SURVEY AREAS DIFFERENT FOR EACH YEAR
+# currently returning fake 0s for early years, etc since the same container is used for each annual bed fc...
+
 import arcpy
 import arcpy.analysis
 import arcpy.conversion
 import pandas as pd
 import numpy as np
 from arcgis.features import GeoAccessor, GeoSeriesAccessor
+import os
 
 # Set environment
 arcpy.env.overwriteOutput = True
@@ -24,12 +28,12 @@ reset_ws()
 #### Load Data ####
 
 # Containers
-containers = "LinearExtent.gdb\\kelp_containers_v1_fixsitecode"
+containers = "LinearExtent.gdb\\kelp_containers_v2"
 print("Using " + containers + " as container features")
 
 # Kayak aggregate annual polygons (all in one feature class)
-kelp_data_path = "kelp_data_sources\\DNR_kayak_perimeters_2013_2023_for_Gray.gdb" 
-fc = kelp_data_path + "\\bed_perimeter_surveys_2013_2023_aggregates_new"
+kelp_data_path = "kelp_data_sources\\DNR_bull_kelp_kayak_2024.gdb" 
+fc = kelp_data_path + "\\bed_perimeter_surveys_2013_2024_aggregates"
 
 print("Dataset to be summarized: " + fc)
 
@@ -37,14 +41,13 @@ print("Dataset to be summarized: " + fc)
 
 # Note: for this dataset, this is just to speed up processing
 # Absence surveys = polygons with a 0 value for area_ha field 
-kayak_bnd = kelp_data_path +  "\\site_boundaries_2023_SPS_all"
+kayak_bnd = kelp_data_path +  "\\site_boundaries_2024_SPS_all"
 arcpy.analysis.Clip(containers, kayak_bnd, "scratch.gdb\\containers_kayak")
 containers = "scratch.gdb\\containers_kayak"
 
 #print("Container fc clipped to " + kayak_bnd.rsplit('\\', 1)[-1])
 
 #### Split feature class into one fc per year ####
-
 arcpy.analysis.SplitByAttributes(fc, "scratch.gdb", ['year_'])
 arcpy.env.workspace = "scratch.gdb"
 split_fcs = arcpy.ListFeatureClasses("T*")
@@ -65,10 +68,8 @@ for fc in split_fcs:
     arcpy.analysis.SummarizeWithin(
         in_polygons = containers,
         in_sum_features = fc,
-        out_feature_class = ("scratch.gdb" + "\\sumwithin" + fc_desc.name),
-        # save results in scratch gdb 
-        sum_fields=[['area_ha', 'Sum'], ['area_ha', 'Mean']] # summarize the area_ha field from the dataset
-        # this is so we don't lose absence survey data where area_ha = 0
+         # save results in scratch gdb 
+        out_feature_class = ("scratch.gdb" + "\\sumwithin" + fc_desc.name)
     ) 
 
     print("Summarize Within complete for " + fc_desc.name)
@@ -79,6 +80,9 @@ sumwithin_fcs = arcpy.ListFeatureClasses('sum*')
 sumwithin_fcs = ["scratch.gdb\\" + fc for fc in sumwithin_fcs]
 reset_ws()
 
+### I THINK I  SHOULD JUST REFORMAT THIS BASED ON LIST OF SITES SURVEYED EACH YEAR ??? or do I need to clip containers per year
+# fucking hell this will be a problem with MRC kayak too... god damnit 
+
 # create function to convert fcs to dfs and store in list
 def df_from_fc(in_features):
     sdf_list = []
@@ -88,11 +92,11 @@ def df_from_fc(in_features):
         fc_year = (str(fc_desc.name[-4:])) # extract year
 
         sdf = pd.DataFrame.spatial.from_featureclass(feature) #use geoaccessor to convert ftr to df
-        sdf['presence'] = np.where(sdf['mean_area_ha'] > 0, 1, 0) # calculate presence
-        sdf = sdf.dropna(subset=['mean_area_ha']) # drop anywhere with no survey data
-        sdf = sdf.filter(['SITE_CODE', 'sum_Area_SQUAREKILOMETERS', 'sum_area_ha','presence'], axis = 1) #drop unneeded cols
+        sdf = sdf.filter(['SITE_CODE', 'sum_Area_SQUAREKILOMETERS'], axis = 1) #drop unneeded cols
         sdf['year'] = fc_year
         sdf['source'] = 'DNR_kayak'
+        sdf['presence'] = np.where(sdf['sum_Area_SQUAREKILOMETERS'] > 3.3445e-7, 1, 0) # calculate presence, this tiny # = the 'absence' polygons
+        sdf['sum_area_ha'] = sdf['sum_Area_SQUAREKILOMETERS'] * 100 # convert to hectares
         sdf_list.append(sdf)
 
         print("Converted " + fc_desc.name + " to sdf and added to list")
