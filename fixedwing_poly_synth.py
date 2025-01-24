@@ -136,15 +136,13 @@ def df_from_fc(in_features, year):
     for feature in in_features:
         
         fc_desc = arcpy.Describe(feature)
-        fc_year = year # extract year
 
         sdf = pd.DataFrame.spatial.from_featureclass(feature) #use geoaccessor to convert fc to df
         sdf = sdf.filter(['SITE_CODE', 'sum_Area_SQUAREKILOMETERS'], axis = 1) #drop unneeded SHAPE cols
-        sdf['year'] = fc_year
+        sdf['year'] = year
         sdf['source'] = 'fixedwing'
         sdf['presence'] = np.where(sdf['sum_Area_SQUAREKILOMETERS'] > 0, 1, 0)
         sdf['sum_area_ha'] = sdf['sum_Area_SQUAREKILOMETERS'] * 100
-
 
         sdf_list.append(sdf)
 
@@ -162,13 +160,28 @@ print(sdf_list[1].head())
 all_data = pd.concat(sdf_list)
 all_data
 
+# If multiple records exist for a single site, select the one with max kelp area 
+max_presence_per_site = all_data.groupby('SITE_CODE')['sum_area_ha'].transform('max')
+
+# Grab those rows
+all_data_max_pres = all_data[all_data['sum_area_ha'] == max_presence_per_site]
+
+# Drop the remaining duplicates (should just be where presence = 0 for both)
+all_data_max_pres = all_data_max_pres.drop_duplicates()
+
+# check if site codes are unique
+if all_data_max_pres['SITE_CODE'].is_unique == False:
+    print("The following sites have more than 1 record for the most recent year:")
+    dupes = all_data_max_pres[all_data_max_pres.duplicated('SITE_CODE', keep=False) == True].sort_values('SITE_CODE')
+    print(dupes)
+else:
+    print("All sites have unique records from fixed wing dataset")
+
+
 print("All years of data have been merged to one df")
-print(" ")
-print(" ")
-print(all_data.head())
 
 # Write to csv
-all_data.to_csv("kelp_data_synth_results\\fixedwing_poly_synth.csv")
+all_data_max_pres.to_csv("kelp_data_synth_results\\fixedwing_poly_synth.csv")
 print("Saved as csv here: kelp_data_synth_results\\fixedwing_poly_synth.csv")
 
 # Clear scratch gdb to keep project size down
