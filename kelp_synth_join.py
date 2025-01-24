@@ -36,19 +36,21 @@ def csv_to_pd(tbls):
 
     for t in tbls:
         df = pd.read_csv(t)
+        print(df.head())
         dfs.append(df)
 
     return dfs
 
 #### Define main function ####
-def kelp_synth_join(tbls, lines):
-
-    synth_dfs = csv_to_pd(tbls)
+def get_most_recent(synth_dfs):
 
     #### Bind rows ####
     all_synth = pd.concat(synth_dfs)
     print("Joined results df: ")
     print(all_synth.head())
+
+    # save this 
+    pd.DataFrame.to_csv(all_synth, "all_records.csv")
 
     #### Select most recent year for each site_code ####
 
@@ -58,7 +60,15 @@ def kelp_synth_join(tbls, lines):
     # Grab those rows
     most_recent = all_synth[all_synth['year'] == most_recent_year]
 
-    # So far all values unique but we will need to create hierarchy if not 
+    # Check if site_code is unique
+    pd.set_option('display.max_rows', None)
+    if most_recent['SITE_CODE'].is_unique == False:
+        print("The following sites have more than 1 record for the most recent year:")
+        dupes = most_recent[most_recent.duplicated('SITE_CODE', keep=False) == True].sort_values('SITE_CODE')
+        print(dupes)
+    else:
+        print("All sites have unique records for most recent year")
+
     # Set index to site_code 
     most_recent = most_recent.set_index('SITE_CODE')
 
@@ -72,6 +82,7 @@ def kelp_synth_join(tbls, lines):
     pd.DataFrame.to_csv(most_recent, 'most_recent.csv')
     print("Written to csv: most_recent.csv")
 
+def join_results_to_lines(tbl, lines):
     #### Join to line segments fc ####
 
     # Copy all lines feature
@@ -79,11 +90,15 @@ def kelp_synth_join(tbls, lines):
     arcpy.management.CopyFeatures(lines, out_lines)
     print("Copied " + lines + " for join")
 
+    # Validate join
+    arcpy.management.ValidateJoin(out_lines, 'SITE_CODE', tbl, 'SITE_CODE')
+    print(arcpy.GetMessages())
+
     # Join
     arcpy.management.JoinField(
         in_data = out_lines,
         in_field = 'SITE_CODE',
-        join_table = 'most_recent.csv',
+        join_table = tbl,
         join_field = 'SITE_CODE'
     )
 
@@ -91,4 +106,8 @@ def kelp_synth_join(tbls, lines):
     print('Results available at ' + out_lines)
 
 #### Run ####
-kelp_synth_join(tbls, lines)
+synth_dfs = csv_to_pd(tbls)
+
+get_most_recent(synth_dfs)
+
+join_results_to_lines('most_recent.csv', lines)
