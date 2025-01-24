@@ -3,10 +3,9 @@
 # 2024-08-15
 
 # Data copied from K:\kelp\bull_kelp_kayak\2024\data_processing\gdb\DNR_bull_kelp_kayak_2024.gdb on 2024-01-14...
-# not all the bed polygons are done yet though
 
-# SURVEY AREAS DIFFERENT FOR EACH YEAR
-# currently returning fake 0s for early years, etc since the same container is used for each annual bed fc...
+# This dataset is a little funky in that there are small 'absence' polygons at sites where there was an annual survey to confirm there was no kelp 
+# Different sites surveyed each year --> if there is no absence polygon, it wasn't surveyed
 
 import arcpy
 import arcpy.analysis
@@ -80,9 +79,6 @@ sumwithin_fcs = arcpy.ListFeatureClasses('sum*')
 sumwithin_fcs = ["scratch.gdb\\" + fc for fc in sumwithin_fcs]
 reset_ws()
 
-### I THINK I  SHOULD JUST REFORMAT THIS BASED ON LIST OF SITES SURVEYED EACH YEAR ??? or do I need to clip containers per year
-# fucking hell this will be a problem with MRC kayak too... god damnit 
-
 # create function to convert fcs to dfs and store in list
 def df_from_fc(in_features):
     sdf_list = []
@@ -93,6 +89,8 @@ def df_from_fc(in_features):
 
         sdf = pd.DataFrame.spatial.from_featureclass(feature) #use geoaccessor to convert ftr to df
         sdf = sdf.filter(['SITE_CODE', 'sum_Area_SQUAREKILOMETERS'], axis = 1) #drop unneeded cols
+        # remove cols where sum_Area_ is actually zero - that indicates that site was not surveyed that year 
+        sdf = sdf[sdf.sum_Area_SQUAREKILOMETERS != 0]
         sdf['year'] = fc_year
         sdf['source'] = 'DNR_kayak'
         sdf['presence'] = np.where(sdf['sum_Area_SQUAREKILOMETERS'] > 3.3445e-7, 1, 0) # calculate presence, this tiny # = the 'absence' polygons
@@ -102,7 +100,6 @@ def df_from_fc(in_features):
         print("Converted " + fc_desc.name + " to sdf and added to list")
 
     return sdf_list    
-
 
 # apply function to list of summarize within outputs
 sdf_list = df_from_fc(sumwithin_fcs)
