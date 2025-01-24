@@ -14,17 +14,16 @@ from arcgis.features import GeoAccessor, GeoSeriesAccessor
 arcpy.env.overwriteOutput = True
 
 # store parent folder workspace in function 
-project_folder = r"D:\DNR_files\Documents\ArcGIS\Projects\LinearExtent"
-
 def reset_ws(): 
-    arcpy.env.workspace = project_folder
+    arcpy.env.workspace = os.getcwd()
 
 reset_ws()
+
 
 #### Load Data ####
 
 # Containers
-containers = "LinearExtent.gdb\\kelp_containers_v1_fixsitecode"
+containers = "LinearExtent.gdb\\kelp_containers_v2"
 print("Using " + containers + " as container features")
 
 # San Juans polygons
