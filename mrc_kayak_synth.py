@@ -91,7 +91,7 @@ def df_from_fc(in_features):
     for feature in in_features:
         
         fc_desc = arcpy.Describe(feature)
-        fc_year = (str(fc_desc.name[-4:])) # extract year
+        fc_year = (str(fc_desc.name[4:8])) # extract year
 
         sdf = pd.DataFrame.spatial.from_featureclass(feature) #use geoaccessor to convert fc to sdf
         sdf = sdf.filter(['SITE_CODE', 'sum_Area_SQUAREKILOMETERS'], axis = 1) #drop unneeded cols
