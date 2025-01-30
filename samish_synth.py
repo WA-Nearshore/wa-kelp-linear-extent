@@ -2,6 +2,8 @@
 # Gray McKenna
 # 2024-08-16
 
+# files from K:\kelp\VScanopy\data\SJI\Samish_spatial_data_2021_delivery
+
 import arcpy
 import arcpy.analysis
 import arcpy.conversion
