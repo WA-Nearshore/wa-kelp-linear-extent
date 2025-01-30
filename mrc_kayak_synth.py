@@ -36,7 +36,7 @@ print("Dataset to be summarized: " + kelp_bed_fc)
 # Reproject kayak beds to match containers
 def reproject_kelp(containers, kelp_bed_fc):
     container_sr = arcpy.Describe(containers).SpatialReference
-    arcpy.Project_management(kelp_bed_fc, "scratch.gdb\\kelp_project", container_sr)
+    arcpy.management.Project(kelp_bed_fc, "scratch.gdb\\kelp_project", container_sr)
     kelp_bed_fc = "scratch.gdb\\kelp_project"
 # not clipping containers, will only include results where presence = 1 
 
@@ -47,7 +47,7 @@ def split_fc_by_year(kelp_bed_fc):
     split_fcs = arcpy.ListFeatureClasses("T*")
     print("MRC Kayak data split into one feature class per year:")
     for fc in split_fcs: print(fc)
-
+    split_fcs = ["scratch.gdb\\" + fc for fc in split_fcs]
     reset_ws()
     return split_fcs
 
@@ -55,28 +55,27 @@ def split_fc_by_year(kelp_bed_fc):
 
 def summarize_kelp_within(split_fcs, containers):
 
-    containers_copy = "scratch.gdb\\containers"
-    arcpy.management.CopyFeatures(containers, containers_copy)
-
-    arcpy.env.workspace = "scratch.gdb"
-
     for fc in split_fcs:
 
         fc_desc = arcpy.Describe(fc)
-        out_feature_class = (os.getcwd() + "scratch.gdb\\sum" + fc_desc.name)
-        try:
+
+        try: 
             arcpy.analysis.SummarizeWithin(
-                containers_copy,
-                fc,
-                out_feature_class,
-                "ONLY_INTERSECTING"
+                in_polygons = containers,
+                in_sum_features = fc,
+                # save results in scratch gdb 
+                out_feature_class = ("scratch.gdb" + "\\sumwithin" + fc_desc.name)
             ) 
 
             print("Summarize Within complete for " + fc_desc.name)
+            
         except arcpy.ExecuteError:
-            print(arcpy.GetMessages())
-        except Exception as e:
-            print(f"Error: {str(e)}")
+            arcpy.AddError(arcpy.GetMessages(2))
+        except:
+            e=sys.exc_info()[1]
+            print(e.args[0])
+
+        
 
     # get list of summarize within output fcs
     sumwithin_fcs = arcpy.ListFeatureClasses('sum*')
@@ -111,6 +110,13 @@ split_fcs = split_fc_by_year(kelp_bed_fc)
 sumwithin_fcs = summarize_kelp_within(split_fcs, containers)
 sdf_list = df_from_fc(sumwithin_fcs)
 
+# Clear scratch gdb to keep project size down
+arcpy.env.workspace = "scratch.gdb"
+scratch_fcs = arcpy.ListFeatureClasses('T*')
+for fc in scratch_fcs:
+    arcpy.Delete_management(fc)
+    print(f"Deleted feature class: {fc}")
+
 print("This is the structure of the sdfs:")
 print(sdf_list[1].head())
 
@@ -126,9 +132,3 @@ all_data.head()
 all_data.to_csv("kelp_data_synth_results\\MRC_kayak_synth.csv")
 print("Saved as csv here: kelp_data_synth_results\\MRC_kayak_synth.csv")
 
-# Clear scratch gdb to keep project size down
-arcpy.env.workspace = "scratch.gdb"
-scratch_fcs = arcpy.ListFeatureClasses('T*')
-for fc in scratch_fcs:
-    arcpy.Delete_management(fc)
-    print(f"Deleted feature class: {fc}")
