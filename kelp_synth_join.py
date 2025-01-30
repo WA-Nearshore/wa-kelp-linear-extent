@@ -54,7 +54,7 @@ def get_most_recent(synth_dfs):
 
     #### Select most recent year for each site_code ####
 
-    # Find most recent year for each
+    # Find most recent year for each SITE_CODE
     most_recent_year = all_synth.groupby('SITE_CODE')['year'].transform('max')
 
     # Grab those rows
