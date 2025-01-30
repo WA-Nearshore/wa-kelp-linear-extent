@@ -2,7 +2,7 @@
 # Gray McKenna
 # 2024-08-15
 
-# Data copied from K:\kelp\bull_kelp_kayak\2024\data_processing\gdb\DNR_bull_kelp_kayak_2024.gdb on 2024-01-14...
+# Data copied from K:\kelp\bull_kelp_kayak\2024\data_processing\gdb\DNR_bull_kelp_kayak_2024.gdb on 2025-01-14...
 
 # This dataset is a little funky in that there are small 'absence' polygons at sites where there was an annual survey to confirm there was no kelp 
 # Different sites surveyed each year --> if there is no absence polygon, it wasn't surveyed
