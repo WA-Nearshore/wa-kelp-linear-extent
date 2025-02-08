@@ -3,7 +3,6 @@
 # Kelp bed data all copied from 
 # K:\kelp\projects\2023_Suquamish_CPS_mapping\data\uas_data\derived_results\Suquamish_UAS_survey_bed_extents.gdb
 
-###### COPIED COSTR SCRIPT TO START 
 #### SET ENVIRONMENT ####
 import arcpy
 import os
@@ -27,17 +26,15 @@ containers = "LinearExtent.gdb\\kelp_containers_v2"
 
 print("Using " + containers + " as container features")
 
-# Set workspace to gdb with data
+# Set path to kelp data
 kelp_data_path = "kelp_data_sources\\Suquamish_UAS_survey_bed_extents.gdb"
 kelp_bed = kelp_data_path + "\\Suquamish_UAS_all_bed_extents"
-arcpy.env.workspace = kelp_data_path
-
 
 #### Clip Containers to orthomosaic boundaries aka survey areas ####
 svy_bnd = kelp_data_path + "\\Orthomosaic_Boundaries"
-arcpy.analysis.Clip(containers, costr_bnd, "scratch.gdb\\containers_cps_uas")
+arcpy.analysis.Clip(containers, svy_bnd, "scratch.gdb\\containers_cps_uas")
 
-containers = "scratch.gdb\\containers_cps_uas
+containers = "scratch.gdb\\containers_cps_uas"
 
 print("Container fc clipped to " + svy_bnd.rsplit('\\', 1)[-1])
 
@@ -48,6 +45,7 @@ arcpy.env.workspace = "scratch.gdb"
 split_fcs = arcpy.ListFeatureClasses("T*")
 print("UAS data split into one feature class per year:")
 for f in split_fcs: print(f)
+reset_ws()
 
 # Append file path
 split_fcs = ["scratch.gdb\\" + fc for fc in split_fcs]
@@ -64,7 +62,7 @@ def sum_kelp_within(fc_list):
 
         fc_desc = arcpy.Describe(fc)
         
-        out_fc_path = ("scratch.gdb/sumwithin" + fc_desc.name).replace(" ", "")
+        out_fc_path = ("scratch.gdb//sumwithin" + fc_desc.name).replace(" ", "")
         
         arcpy.analysis.SummarizeWithin(
             in_polygons = containers,
@@ -74,7 +72,7 @@ def sum_kelp_within(fc_list):
 
         print("Summarize Within complete for " + fc_desc.name)
 
-sum_kelp_within(costr_fcs)
+sum_kelp_within(split_fcs)
 
 #### Save results to tables ####
 
@@ -120,8 +118,8 @@ print(" ")
 print(all_data.head())
 
 # Write to csv
-all_data.to_csv("kelp_data_synth_results\\COSTR_synth.csv")
-print("Saved as csv here: kelp_data_synth_results\\COSTR_synth.csv")
+all_data.to_csv("kelp_data_synth_results\\cps_uas_synth.csv")
+print("Saved as csv here: kelp_data_synth_results\\cps_uas_synth.csv")
 
 # Clear scratch gdb to keep project size down
 arcpy.env.workspace = "scratch.gdb"
