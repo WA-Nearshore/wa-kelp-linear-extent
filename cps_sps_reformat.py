@@ -5,6 +5,7 @@
 import pandas as pd
 
 # load data --> copied into this folder from K:, see notes for full file path
+# this script uses the TABULAR data for SPS and CPS and reformats it for use in the comprehensive dataset
 
 cps = pd.read_csv(r"kelp_data_sources\bull_kelp_2019_cps.csv")
 sps = pd.read_csv(r"kelp_data_sources/dnr2017_ss.csv")
