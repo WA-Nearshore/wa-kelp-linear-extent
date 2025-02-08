@@ -5,6 +5,7 @@
 import arcpy
 import arcpy.management
 import pandas as pd
+import numpy as np
 from pathlib import Path
 import os
 
@@ -49,7 +50,7 @@ def get_most_recent(synth_dfs):
     print("Joined results df: ")
     print(all_synth.head())
 
-    # save this 
+    # save this as the 'all_records" table. 
     pd.DataFrame.to_csv(all_synth, "all_records.csv")
 
     #### Select most recent year for each site_code ####
@@ -66,20 +67,28 @@ def get_most_recent(synth_dfs):
         print("The following sites have more than 1 record for the most recent year:")
         dupes = most_recent[most_recent.duplicated('SITE_CODE', keep=False) == True].sort_values('SITE_CODE')
         print(dupes)
+        print("Selecting source with maximum area")
     else:
         print("All sites have unique records for most recent year")
+    
+    # count number of records for most recent year
+    most_recent.loc[:, 'n_sources'] = most_recent.groupby('SITE_CODE')['SITE_CODE'].transform('count')
+
+    # for years with multiple records, select row with max kelp area 
+    most_recent['sum_area_ha'].fillna(-9999, inplace=True) # replace NULL values with -9999 so the below code works
+    most_rec_max = most_recent[most_recent['sum_area_ha'] == most_recent.groupby('SITE_CODE')['sum_area_ha'].transform('max')]
 
     # Set index to site_code 
-    most_recent = most_recent.set_index('SITE_CODE')
+    most_rec_max =  most_rec_max.set_index('SITE_CODE')
 
     # Drop this random garbage column
-    most_recent = most_recent.drop(['Unnamed: 0'], axis = 1)
+    most_rec_max =  most_rec_max.drop(['Unnamed: 0'], axis = 1)
 
     print("Preview of most recent year table:")
-    print(most_recent.head())
+    print( most_rec_max.head())
 
     # write to a csv
-    pd.DataFrame.to_csv(most_recent, 'most_recent.csv')
+    pd.DataFrame.to_csv( most_rec_max, 'most_recent.csv')
     print("Written to csv: most_recent.csv")
 
 def join_results_to_lines(tbl, lines):
