@@ -96,8 +96,8 @@ print(" ")
 print(all_data.head())
 
 # Write to csv
-all_data.to_csv("kelp_data_synth_results\\AQRES_synth_test.csv")
-print("Saved as csv here: kelp_data_synth_results\\AQRES_synth_test.csv")
+all_data.to_csv("kelp_data_synth_results\\AQRES_synth.csv")
+print("Saved as csv here: kelp_data_synth_results\\AQRES_synth.csv")
 
 # Clear scratch gdb to keep project size down
 #fns.clear_scratch()
