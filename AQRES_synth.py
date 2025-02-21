@@ -1,105 +1,87 @@
 # Summarize AQRES data to kelp linear extent
-# Gray McKenna
-# 2024-08-15
 
 # AQRES Data
-# Download data 2024-06-17
+# Latest download date 2025-02-20
 # Link: https://fortress.wa.gov/dnr/adminsa/gisdata/datadownload/kelp_canopy_aquatic_reserves.zip
 
+##### setup environment ####
+
+import sys
+import os
 import arcpy
+import arcpy.management
+import arcpy.analysis
 import arcpy.conversion
 import pandas as pd
-import numpy as np
 from arcgis.features import GeoAccessor, GeoSeriesAccessor
-import os
 
-# Set environment
+sys.path.append(os.getcwd())
+
+# import the project function library 
+import fns
+
 arcpy.env.overwriteOutput = True
 
-# store parent folder workspace in function 
-def reset_ws(): 
-    arcpy.env.workspace = os.getcwd()
+fns.reset_ws()
 
-reset_ws()
+#### load data ####
 
-#### Load Data ####
-
-# Containers
+# containers
 containers = "LinearExtent.gdb\\kelp_containers_v2"
-print("Using " + containers + " as container features")
+print(f"Using {containers} as container features")
 
-# Set workspace to gdb with kelp data sources
+# set workspace to gdb with kelp data sources
 kelp_data_path = r"kelp_data_sources\kelp_canopy_aquatic_reserves\kelp_canopy_aquatic_reserves.gdb"
 arcpy.env.workspace = kelp_data_path
 
-# List AQRES feature classes
-aqres_fcs = arcpy.ListFeatureClasses('kelp1*')  # add all fcs from 1900s
-aqres_fcs.extend(arcpy.ListFeatureClasses('kelp2*')) # add all fcs from 2000s
+# list AQRES feature classes
+aqres_fcs = arcpy.ListFeatureClasses('kelp1*')  # add all fcs from 2010s
+aqres_fcs.extend(arcpy.ListFeatureClasses('kelp2*')) # add all fcs from 2020s
 
-for fc in aqres_fcs: print("Datasets to be summarized: " + fc)
+for fc in aqres_fcs: print(f"Datasets to be summarized: {fc}")
 
 # append path to fcs in list 
-aqres_fcs = [kelp_data_path + "\\" + fc for fc in aqres_fcs]
+aqres_fcs = [f"{kelp_data_path}\\{fc}" for fc in aqres_fcs]
 
 # reset workspace to parent folder
-reset_ws()
+fns.reset_ws()
 
-#### Clip Containers to Survey Area ####
-aqres_bnd = kelp_data_path + "\\map_index_ar"
+#### clip containers to survey area ####
+aqres_bnd = f"{kelp_data_path}\\map_index_ar"
 arcpy.analysis.Clip(containers, aqres_bnd, "scratch.gdb\\containers_AQRES")
 
+# reset container variable to the clipped version
 containers = "scratch.gdb\\containers_AQRES"
 
 print("Container fc clipped to " + aqres_bnd.rsplit('\\', 1)[-1])
 
-#### Summarize Within ####
-
-# Run summarize within each year of data with containers
-for fc in aqres_fcs:
-
-    fc_desc = arcpy.Describe(fc)
-
-    arcpy.analysis.SummarizeWithin(
-        in_polygons = containers,
-        in_sum_features = fc,
-        out_feature_class = ("scratch.gdb" + "\\sumwithin" + fc_desc.name)
-    ) # save results in scratch gdb 
-
-    print("Summarize Within complete for " + fc_desc.name)
+#### run summarize within ####
+fns.sum_kelp_within(aqres_fcs, containers)
 
 #### Save results to tables ####
 
 # get list of summarize within output fcs
-arcpy.env.workspace = "scratch.gdb"
+arcpy.env.workspace = os.path.join(os.getcwd(),"scratch.gdb")
 sumwithin_fcs = arcpy.ListFeatureClasses("sum*")
-sumwithin_fcs = ["scratch.gdb\\" + fc for fc in sumwithin_fcs]
-reset_ws()
+print("Resulting fcs: ")
+for f in sumwithin_fcs: print(f"{f}")
 
-# create function to convert fcs to dfs and store in list
-def df_from_fc(in_features):
-    sdf_list = []
-    for feature in in_features:
-        
-        fc_desc = arcpy.Describe(feature)
-        fc_year = ("20" + str(fc_desc.name[-4:-2])) # extract year
+# rename fcs to have year at end 
+for fc in sumwithin_fcs:
+    fc_desc = arcpy.Describe(fc)
+    new_name = f"sum20{str(fc_desc.name[-4:-2])}"
+    print(f"original fc name: f{fc_desc.name}")
 
-        sdf = pd.DataFrame.spatial.from_featureclass(feature) #use geoaccessor to convert fc to df
-        sdf = sdf.filter(['SITE_CODE', 'sum_Area_SQUAREKILOMETERS'], axis = 1) #drop unneeded SHAPE cols
-        sdf['year'] = fc_year
-        sdf['source'] = 'AQRES'
-        sdf['presence'] = np.where(sdf['sum_Area_SQUAREKILOMETERS'] > 0, 1, 0)
-        sdf['sum_area_ha'] = sdf['sum_Area_SQUAREKILOMETERS'] * 100
+    arcpy.management.Rename(fc, new_name)
+    print(f"{fc_desc.name} renamed to {new_name}")
 
+# reset list 
+sumwithin_fcs = arcpy.ListFeatureClasses("sum*")
+sumwithin_fcs = [f"scratch.gdb\\{fc}" for fc in sumwithin_fcs]
+fns.reset_ws()
 
-        sdf_list.append(sdf)
-
-        print("Converted " + fc_desc.name + " to sdf and added to list")
-
-    return sdf_list    
-
-
-# apply function to list of summarize within outputs
-sdf_list = df_from_fc(sumwithin_fcs)
+# convert fcs to dfs
+sdf_list = fns.df_from_fc(sumwithin_fcs, "WADNR_AQRES")
 
 print("This is the structure of the sdfs:")
 print(sdf_list[1].head())
@@ -114,12 +96,8 @@ print(" ")
 print(all_data.head())
 
 # Write to csv
-all_data.to_csv("kelp_data_synth_results\\AQRES_synth.csv")
-print("Saved as csv here: kelp_data_synth_results\\AQRES_synth.csv")
+all_data.to_csv("kelp_data_synth_results\\AQRES_synth_test.csv")
+print("Saved as csv here: kelp_data_synth_results\\AQRES_synth_test.csv")
 
 # Clear scratch gdb to keep project size down
-arcpy.env.workspace = "scratch.gdb"
-scratch_fcs = arcpy.ListFeatureClasses()
-for fc in scratch_fcs:
-    arcpy.Delete_management(fc)
-    print(f"Deleted feature class: {fc}")
+#fns.clear_scratch()
