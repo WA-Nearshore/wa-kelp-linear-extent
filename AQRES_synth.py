@@ -4,7 +4,7 @@
 # Latest download date 2025-02-20
 # Link: https://fortress.wa.gov/dnr/adminsa/gisdata/datadownload/kelp_canopy_aquatic_reserves.zip
 
-##### setup environment ####
+# set up environment --------------------------------------
 
 import sys
 import os
@@ -22,9 +22,10 @@ import fns
 
 arcpy.env.overwriteOutput = True
 
+# set workspace to parent folder
 fns.reset_ws()
 
-#### load data ####
+# prep data ------------------------------------------------
 
 # containers
 containers = "LinearExtent.gdb\\kelp_containers_v2"
@@ -46,7 +47,7 @@ aqres_fcs = [f"{kelp_data_path}\\{fc}" for fc in aqres_fcs]
 # reset workspace to parent folder
 fns.reset_ws()
 
-#### clip containers to survey area ####
+# clip containers to survey area 
 aqres_bnd = f"{kelp_data_path}\\map_index_ar"
 arcpy.analysis.Clip(containers, aqres_bnd, "scratch.gdb\\containers_AQRES")
 
@@ -55,10 +56,9 @@ containers = "scratch.gdb\\containers_AQRES"
 
 print("Container fc clipped to " + aqres_bnd.rsplit('\\', 1)[-1])
 
-#### run summarize within ####
-fns.sum_kelp_within(aqres_fcs, containers)
+# calculate presence  -----------------------------------------
 
-#### Save results to tables ####
+fns.sum_kelp_within(aqres_fcs, containers)
 
 # get list of summarize within output fcs
 arcpy.env.workspace = os.path.join(os.getcwd(),"scratch.gdb")
@@ -70,8 +70,6 @@ for f in sumwithin_fcs: print(f"{f}")
 for fc in sumwithin_fcs:
     fc_desc = arcpy.Describe(fc)
     new_name = f"sum20{str(fc_desc.name[-4:-2])}"
-    print(f"original fc name: f{fc_desc.name}")
-
     arcpy.management.Rename(fc, new_name)
     print(f"{fc_desc.name} renamed to {new_name}")
 
@@ -86,18 +84,35 @@ sdf_list = fns.df_from_fc(sumwithin_fcs, "WADNR_AQRES")
 print("This is the structure of the sdfs:")
 print(sdf_list[1].head())
 
-# Merge to one df
-all_data = pd.concat(sdf_list)
-all_data
+# merge results to one df 
+presence = pd.concat(sdf_list)
+print("Presence data merged to one df")
+print(presence.head())
 
-print("All years of data have been merged to one df")
-print(" ")
-print(" ")
-print(all_data.head())
+# calculate abundance ---------------------------------------
+
+print("Clipping abundance containers to survey boundary...")
+abundance_containers = "LinearExtent.gdb\\abundance_containers"
+arcpy.analysis.Clip(abundance_containers, aqres_bnd, "scratch.gdb\\ab_containers_AQRES")
+abundance_containers = "scratch.gdb\\ab_containers_AQRES"
+
+abundance = fns.calc_abundance(abundance_containers, aqres_fcs)
+
+abundance['year'] = "20" + abundance['fc_name'].str[4:6]
+print("Compiled abundance results:")
+abundance.to_csv("AQRES_abundance_test.csv")
+print(abundance.head())
+
+# combine results -------------------------------------------
+
+print("Combining results to one dataframe")
+results = pd.merge(presence, abundance, how='left', on=['SITE_CODE','year'])
+print(results.head())
 
 # Write to csv
-all_data.to_csv("kelp_data_synth_results\\AQRES_synth.csv")
-print("Saved as csv here: kelp_data_synth_results\\AQRES_synth.csv")
+out_result = "AQRES_synth_test.csv"
+results.to_csv(f"kelp_data_synth_results\\{out_result}")
+print(f"Saved as csv here: kelp_data_synth_results\\{out_result}")
 
 # Clear scratch gdb to keep project size down
-#fns.clear_scratch()
+fns.clear_scratch()

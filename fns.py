@@ -26,8 +26,8 @@ def sum_kelp_within(fc_list, containers):
         # get the describe object for the feature class
         fc_desc = arcpy.Describe(fc)
 
-        # set the out path to the include the feature class yer
-        out_fc_path = (f"scratch.gdb/sumwithin{fc_desc.name}")
+        # set the out path to the include the feature class name
+        out_fc_path = (f"scratch.gdb/sumwithin{fc_desc.name}".replace(" ",""))
 
         # run summarize within
         arcpy.analysis.SummarizeWithin(
@@ -64,8 +64,80 @@ def df_from_fc(in_features, source_name):
 
 # clear scratch to keep project size down 
 def clear_scratch():
-    arcpy.env.workspace = "scratch.gdb"
+    arcpy.env.workspace = os.path.join(os.getcwd(), "scratch.gdb")
     scratch_fcs = arcpy.ListFeatureClasses()
     for fc in scratch_fcs:
         arcpy.Delete_management(fc)
         print(f"Deleted feature class: {fc}")
+
+
+# tool for calculating proportional presence (abundance) of polygon kelp beds along line segments
+def calc_abundance(abundance_containers, kelp_bed_fcs):
+
+    #initial result sdf list 
+    df_list =[]
+
+    # summarize within
+    for fc in kelp_bed_fcs:
+
+        # get the describe object for the feature class
+        fc_desc = arcpy.Describe(fc)
+
+        # set the out path to memory
+        out_fc = (f"scratch.gdb//ab{fc_desc.name}")
+
+        # run summarize within
+        print(f"Running Abundance SummarizeWithin for {fc_desc.name}...")
+        arcpy.analysis.SummarizeWithin(
+            in_polygons = abundance_containers,
+            in_sum_features = fc,
+            out_feature_class = out_fc,
+            shape_unit = "HECTARES"
+        )
+        print(f"Result written to {out_fc}")
+
+        print("Converting to df...")
+        df = pd.DataFrame.spatial.from_featureclass(out_fc)
+
+        # calculate total_length for each SITE_CODE
+        df['total_length'] = df.groupby('SITE_CODE')['length_m'].transform('sum')
+
+        # calculate weight of each subdivided section based on original feature length
+        df['weight'] = df['length_m'] / df['total_length']
+
+        # calculate presence
+        df['presence'] = df['sum_Area_HECTARES'].apply(lambda x: 1 if x > 0 else 0)
+
+        # get weighted presence for each section
+        df['w_pres'] = df['weight'] * df['presence']
+
+        # sum weighted presence across site codes
+        result = (df.groupby('SITE_CODE')
+                .agg(sum_w_pres=('w_pres', 'sum'))
+                .reset_index())
+
+        # categorize abundance based on weighted presence 
+        print("Calculating abundance...")
+        result['abundance'] = pd.cut(result['sum_w_pres'],
+                                    bins=[-float('inf'), 0, 0.25, 0.5, 0.75, float('inf')],
+                                    labels=[0, 1, 2, 3, 4])
+        
+        # keep only relevant columns
+        result = result[['SITE_CODE', 'abundance']]
+        
+        # add a column with name of fc input. will need to be uniquely reformatted per data source to get year 
+        result['fc_name'] = str(fc_desc.name)
+
+        # view result
+        print("Abundance result:")
+        print(result.head())
+
+        # delete the feature class from memory
+       # arcpy.management.Delete(out_fc)
+
+        # append result to df list
+        df_list.append(result)
+
+    abundance_results = pd.concat(df_list)
+    return (abundance_results)
+
