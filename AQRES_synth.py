@@ -99,8 +99,8 @@ abundance_containers = "scratch.gdb\\ab_containers_AQRES"
 abundance = fns.calc_abundance(abundance_containers, aqres_fcs)
 
 abundance['year'] = "20" + abundance['fc_name'].str[4:6]
+abundance = abundance.drop(columns=['fc_name'])
 print("Compiled abundance results:")
-abundance.to_csv("AQRES_abundance_test.csv")
 print(abundance.head())
 
 # combine results -------------------------------------------
@@ -110,7 +110,7 @@ results = pd.merge(presence, abundance, how='left', on=['SITE_CODE','year'])
 print(results.head())
 
 # Write to csv
-out_result = "AQRES_synth_test.csv"
+out_result = "AQRES_synth.csv"
 results.to_csv(f"kelp_data_synth_results\\{out_result}")
 print(f"Saved as csv here: kelp_data_synth_results\\{out_result}")
 
