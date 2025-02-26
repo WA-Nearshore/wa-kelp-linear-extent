@@ -1,9 +1,11 @@
 # ShoreZone data synth
 
+# does not use project function library 
+
 # Data downloaded 2024-07-30 from: 
 # 20240730 https://fortress.wa.gov/dnr/adminsa/gisdata/datadownload/state_DNR_ShoreZone.zip
 
-#### SET ENVIRONMENT ####
+# set env -----------------------------------------------
 import arcpy
 import os
 import pandas as pd
@@ -19,7 +21,7 @@ def reset_ws():
 
 reset_ws()
 
-#### Load Data ####
+# prep data ---------------------------------------------
 
 # Containers
 containers = "LinearExtent.gdb\\kelp_containers_v2"
@@ -33,7 +35,7 @@ kelp_lines = "kelp_data_sources\\state_DNR_ShoreZone\\shorezone_themes.gdb\\fkel
 svy_lines = "kelp_data_sources\\state_DNR_ShoreZone\\shorezone.gdb\\szline" 
 # Just need VIDEO_DATE field from this to get the year 
 
-### Reformat ShoreZone Data ####
+# convert lines to polygons ------------------------------
 
 # buffer fkelplin by ~100m
 buff_lines = "scratch.gdb\\fkelplin_buff100m"
@@ -78,6 +80,8 @@ buff_line_year = arcpy.management.CalculateField(
 # Remove join
 buff_line = arcpy.management.RemoveJoin(buff_line_join)
 
+# calculate presence --------------------------------------------
+
 # Run an intersect
 kelp_int = "scratch.gdb\kelplin_cont_int"
 arcpy.analysis.PairwiseIntersect(
@@ -99,6 +103,7 @@ df = pd.DataFrame.spatial.from_featureclass(kelp_int)
 df['area'] = pd.to_numeric(df['area'])
 df['area'] = df['area'].fillna(0)
 
+# calculate abundance -----------------------------------------
 # Compute abundance category per site
 sum_area = (df.groupby(['SITE_CODE', 'FLOATKELP'])
             .agg(total_area=('area', 'sum'))
@@ -134,6 +139,7 @@ site_year_max = site_year.loc[site_year.groupby('SITE_CODE')['year_area'].idxmax
 print(f"Unique SITE_CODEs in site_year: {site_year['SITE_CODE'].nunique()}")
 print(f"Unique SITE_CODEs in sum_area: {sum_area.index.nunique()}")
 
+# compile and export ---------------------------------------
 # Join the results on SITE_CODE
 result = pd.merge(sum_area, site_year, on='SITE_CODE')
 
