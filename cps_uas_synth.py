@@ -1,129 +1,115 @@
-# Suquamish CPS UAS Synth
+# Summarize WADNR/Suquamish CPS UAS baseline survey data for linear extent
 
-# Kelp bed data all copied from 
+# Kelp bed data all copied 2025-01-30
 # K:\kelp\projects\2023_Suquamish_CPS_mapping\data\uas_data\derived_results\Suquamish_UAS_survey_bed_extents.gdb
 
-#### SET ENVIRONMENT ####
-import arcpy
+# Note: Orthomosaic_Boundaries is a multipart fc with only 1 feature
+# Manually exploded to single part, spatial joined beds (1:m) to get year, split by year, renamed to Ortho2023, Ortho2024 
+
+# set environment ----------------------------------------------
+
 import os
+import arcpy
+import arcpy.management
+import arcpy.analysis
+import arcpy.conversion
 import pandas as pd
 import numpy as np
-from dbfread import DBF
+import sys
 from arcgis.features import GeoAccessor, GeoSeriesAccessor
+
+sys.path.append(os.getcwd())
+
+# import the project function library 
+import fns
 
 arcpy.env.overwriteOutput = True
 
-# store parent folder workspace in function 
-def reset_ws(): 
-    arcpy.env.workspace = os.getcwd()
+# set workspace to parent folder
+fns.reset_ws()
 
-reset_ws()
+# prep data ---------------------------------------------------
 
-#### Load Data ####
-
-# Containers
+# containers
 containers = "LinearExtent.gdb\\kelp_containers_v2"
 
-print("Using " + containers + " as container features")
+print(f"Using {containers} as container features")
 
-# Set path to kelp data
+# set path to kelp data
 kelp_data_path = "kelp_data_sources\\Suquamish_UAS_survey_bed_extents.gdb"
-kelp_bed = kelp_data_path + "\\Suquamish_UAS_all_bed_extents"
+kelp_bed = f"{kelp_data_path}\\Suquamish_UAS_all_bed_extents"
 
-#### Clip Containers to orthomosaic boundaries aka survey areas ####
-svy_bnd = kelp_data_path + "\\Orthomosaic_Boundaries"
-arcpy.analysis.Clip(containers, svy_bnd, "scratch.gdb\\containers_cps_uas")
-
-containers = "scratch.gdb\\containers_cps_uas"
-
-print("Container fc clipped to " + svy_bnd.rsplit('\\', 1)[-1])
-
-
-#### Split feature class into one fc per year ####
+# split feature class into one fc per year 
 arcpy.analysis.SplitByAttributes(kelp_bed, "scratch.gdb", ['Year'])
-arcpy.env.workspace = "scratch.gdb"
+arcpy.env.workspace = os.path.join(os.getcwd(), "scratch.gdb")
 split_fcs = arcpy.ListFeatureClasses("T*")
 print("UAS data split into one feature class per year:")
 for f in split_fcs: print(f)
-reset_ws()
+fns.reset_ws()
 
-# Append file path
-split_fcs = ["scratch.gdb\\" + fc for fc in split_fcs]
+# append file path
+split_fcs = [f"scratch.gdb\\{fc}" for fc in split_fcs]
 
-#### Summarize Within ####
+# get list of survey boundaries --> see notes above for pre-processing
+arcpy.env.workspace = os.path.join(os.getcwd(), kelp_data_path)
+ortho_fcs = arcpy.ListFeatureClasses("Ortho2*")
+print("Survey boundaries:")
+for f in ortho_fcs: print(f)
+fns.reset_ws()
 
-# split bed perimeters into feature classes per year (2023 and 2024)
+# append file path
+ortho_fcs = [f"{kelp_data_path}\\{fc}" for fc in ortho_fcs]
 
-# Run summarize within each year of data with containers
+# create paired list of kelp beds, survey areas
+fc_list = [(split_fcs[0], ortho_fcs[0]), (split_fcs[1], ortho_fcs[1])]
+print("Data to be analyzed: ")
+for kelp, svy in fc_list: 
+    print(f"Kelp data: {kelp}")
+    print(f"Survey boundary: {svy}")
 
-def sum_kelp_within(fc_list):
+# calculate presence --------------------------------------------------
 
-    for fc in fc_list:
-
-        fc_desc = arcpy.Describe(fc)
-        
-        out_fc_path = ("scratch.gdb//sumwithin" + fc_desc.name).replace(" ", "")
-        
-        arcpy.analysis.SummarizeWithin(
-            in_polygons = containers,
-            in_sum_features = fc,
-            out_feature_class = out_fc_path
-        )
-
-        print("Summarize Within complete for " + fc_desc.name)
-
-sum_kelp_within(split_fcs)
-
-#### Save results to tables ####
+print("Calculating presence...")
+fns.sum_kelp_within(fc_list, containers, variable_survey_area=True)
 
 # get list of summarize within output fcs
-arcpy.env.workspace = "scratch.gdb"
+arcpy.env.workspace = os.path.join(os.getcwd(), "scratch.gdb")
 sumwithin_fcs = arcpy.ListFeatureClasses('sum*')
-sumwithin_fcs = ["scratch.gdb\\" + fc for fc in sumwithin_fcs]
-reset_ws()
+sumwithin_fcs = [f"scratch.gdb\\{fc}" for fc in sumwithin_fcs]
+fns.reset_ws()
 
-# create function to convert fcs to dfs and store in list
-def df_from_fc(in_features):
-    sdf_list = []
-    for feature in in_features:
-        
-        fc_desc = arcpy.Describe(feature)
-        fc_year = fc_desc.name[-4:] # extract year
-
-        sdf = pd.DataFrame.spatial.from_featureclass(feature) #use geoaccessor to convert fc to df
-        sdf = sdf.filter(['SITE_CODE', 'sum_Area_SQUAREKILOMETERS'], axis = 1) #drop unneeded SHAPE cols
-        sdf['year'] = fc_year
-        sdf['source'] = 'WADNR_CPS_UAS'
-        sdf['presence'] = np.where(sdf['sum_Area_SQUAREKILOMETERS'] > 0, 1, 0)
-        sdf['sum_area_ha'] = sdf['sum_Area_SQUAREKILOMETERS'] * 100
-
-        sdf_list.append(sdf)
-
-        print("Converted " + fc_desc.name + " to sdf and added to list")
-
-    return sdf_list    
-
-# apply function to list of summarize within outputs
-sdf_list = df_from_fc(sumwithin_fcs)
+# convert to sdfs
+sdf_list = fns.df_from_fc(sumwithin_fcs, "WADNR_Suquamish_CPS_UAS_surveys")
 
 print("This is the structure of the sdfs:")
 print(sdf_list[1].head())
 
-# Merge to one df
-all_data = pd.concat(sdf_list)
-all_data
+# merge results to one df 
+presence = pd.concat(sdf_list)
+print("Presence data merged to one df")
+print(presence.head())
 
-print("All years of data have been merged to one df")
-print(" ")
-print(all_data.head())
+# calculate abundance -------------------------------------------------
+
+print("Calculating abundance...")
+abundance_containers = "LinearExtent.gdb\\abundance_containers"
+abundance = fns.calc_abundance(abundance_containers, fc_list, variable_survey_area=True)
+
+abundance['year'] = abundance['fc_name'].str[-4:]
+abundance = abundance.drop(columns=['fc_name'])
+print("Compiled abundance results:")
+print(abundance.head())
+
+# combine results ----------------------------------------------
+
+print("Combining results to one dataframe")
+results = pd.merge(presence, abundance, how='left', on=['SITE_CODE','year'])
+print(results.head())
 
 # Write to csv
-all_data.to_csv("kelp_data_synth_results\\cps_uas_synth.csv")
-print("Saved as csv here: kelp_data_synth_results\\cps_uas_synth.csv")
+out_result = "cps_uas_synth.csv"
+results.to_csv(f"kelp_data_synth_results\\{out_result}")
+print(f"Saved as csv here: kelp_data_synth_results\\{out_result}")
 
-# Clear scratch gdb to keep project size down
-arcpy.env.workspace = "scratch.gdb"
-scratch_fcs = arcpy.ListFeatureClasses()
-for fc in scratch_fcs:
-    arcpy.Delete_management(fc)
-    print(f"Deleted feature class: {fc}")
+# clear workspace
+fns.clear_scratch()
