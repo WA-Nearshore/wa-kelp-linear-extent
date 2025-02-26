@@ -17,12 +17,12 @@ def reset_ws():
 
 # summarize within 
 
-def sum_kelp_within(fc_list, containers, unique_survey=False): 
+def sum_kelp_within(fc_list, containers, variable_survey_area=False): 
     # fc_list = list of feature class of kelp beds OR paired list of kelp feature classes, kelp survey area
-    # containers = containers for summarize within ALREADY CLIPPED TO SURVEY EXTENT if unique_survey=False
+    # containers = containers for summarize within ALREADY CLIPPED TO SURVEY EXTENT if variable_survey_area=False
 
     # if each year/survey needs its own survey area: 
-    if unique_survey:
+    if variable_survey_area:
         for kelp_fc, svy_fc in fc_list: 
             print("Beginning sum within for: ")
             print(f"Kelp data: {kelp_fc}")
@@ -39,7 +39,7 @@ def sum_kelp_within(fc_list, containers, unique_survey=False):
 
             # set env scratch space to env to avoid error 100014
             arcpy.env.scratchWorkspace = arcpy.env.workspace
-            
+
             print("Running sum within...")
             try:
                 arcpy.analysis.SummarizeWithin(
@@ -120,12 +120,12 @@ def clear_scratch():
 
 
 # tool for calculating proportional presence (abundance) of polygon kelp beds along line segments
-def calc_abundance(abundance_containers, kelp_fcs, unique_survey=False):
+def calc_abundance(abundance_containers, kelp_fcs, variable_survey_area=False):
     
     #initial result sdf list 
     df_list = []
 
-    if unique_survey:
+    if variable_survey_area:
         for fc, svy in kelp_fcs:
 
              # get the describe object for the feature class
