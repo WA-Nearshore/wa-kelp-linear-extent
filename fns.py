@@ -7,6 +7,7 @@ import arcpy.analysis
 import arcpy.conversion
 import pandas as pd
 import numpy as np
+import sys
 from arcgis.features import GeoAccessor, GeoSeriesAccessor
 
 arcpy.env.overwriteOutput = True
