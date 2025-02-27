@@ -17,12 +17,13 @@ from dbfread import DBF
 import sys
 from arcgis.features import GeoAccessor, GeoSeriesAccessor
 
+sys.path.append(os.getcwd())
+
 # import the project function library 
 import fns
 
 arcpy.env.overwriteOutput = True
 
-# set workspace to parent folder
 fns.reset_ws()
 
 # prep data ----------------------------------------------------------
@@ -59,7 +60,7 @@ for kelp, svy in fc_list:
 fc_list = [[kelp_data_path + kelp, kelp_data_path + svy] for kelp, svy in fc_list]
 
 # calculate presence ------------------------------------------------------
-fns.sum_kelp_within(fc_list, containers, unique_survey=True)
+fns.sum_kelp_within(fc_list, containers, variable_survey_area=True)
 
 # convert results to tables and combine
 arcpy.env.workspace = os.path.join(os.getcwd(), "scratch.gdb")
@@ -79,8 +80,9 @@ print("Combining to one dataframe")
 presence = pd.concat(sdf_list)
 
 # calculate abundance ------------------------------------------------------
+print("Calculating abundance....")
 abundance_containers = "LinearExtent.gdb\\abundance_containers"
-abundance = fns.calc_abundance(abundance_containers, fc_list, unique_survey=True)
+abundance = fns.calc_abundance(abundance_containers, fc_list, variable_survey_area=True)
 
 # add the year col
 abundance['year'] = abundance['fc_name'].str[-4:]
@@ -115,11 +117,12 @@ print("All years of data have been merged to one df")
 results = pd.merge(presence, abundance, how="left", on=["SITE_CODE", "year"])
 
 # Write to csv
-out_results = "kelp_data_synth_results\\fixedwing_poly_synth_TEST.csv"
+out_results = "kelp_data_synth_results\\fixedwing_poly_synth.csv"
 results.to_csv(out_results)
 print(f"Saved as csv here: {out_results}")
 
-
+# clear scratch
+fns.clear_scratch()
 
 
 
