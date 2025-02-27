@@ -1,12 +1,11 @@
 # Summarize kayak data to kelp linear extent
-# Gray McKenna
-# 2024-08-15
 
 # Data copied from K:\kelp\bull_kelp_kayak\2024\data_processing\gdb\DNR_bull_kelp_kayak_2024.gdb on 2025-01-14...
 
 # This dataset is a little funky in that there are small 'absence' polygons at sites where there was an annual survey to confirm there was no kelp 
 # Different sites surveyed each year --> if there is no absence polygon, it wasn't surveyed
 
+# set environment -------------------------------------------------------
 import arcpy
 import arcpy.analysis
 import arcpy.conversion
@@ -14,114 +13,119 @@ import pandas as pd
 import numpy as np
 from arcgis.features import GeoAccessor, GeoSeriesAccessor
 import os
+import sys
 
-# Set environment
+sys.path.append(os.getcwd())
+
+# import the project function library 
+import fns
+
 arcpy.env.overwriteOutput = True
 
-# store parent folder workspace in function 
-def reset_ws(): 
-    arcpy.env.workspace = os.getcwd()
+fns.reset_ws()
 
-reset_ws()
+# prep data ------------------------------------------------------------
 
-#### Load Data ####
-
-# Containers
+# containers
 containers = "LinearExtent.gdb\\kelp_containers_v2"
-print("Using " + containers + " as container features")
+print(f"Using {containers} as container features")
 
-# Kayak aggregate annual polygons (all in one feature class)
+# kayak aggregate annual polygons (all in one feature class)
 kelp_data_path = "kelp_data_sources\\DNR_bull_kelp_kayak_2024.gdb" 
-fc = kelp_data_path + "\\bed_perimeter_surveys_2013_2024_aggregates"
+fc = f"{kelp_data_path}\\bed_perimeter_surveys_2013_2024_aggregates"
 
-print("Dataset to be summarized: " + fc)
+print(f"Dataset to be summarized: {fc}")
 
-#### Clip containers by survey boundaries ###
-
-# Note: for this dataset, this is just to speed up processing
-# Absence surveys = polygons with a 0 value for area_ha field 
-kayak_bnd = kelp_data_path +  "\\site_boundaries_2024_SPS_all"
-arcpy.analysis.Clip(containers, kayak_bnd, "scratch.gdb\\containers_kayak")
-containers = "scratch.gdb\\containers_kayak"
-
-#print("Container fc clipped to " + kayak_bnd.rsplit('\\', 1)[-1])
-
-#### Split feature class into one fc per year ####
+# split kelp beds by year
 arcpy.analysis.SplitByAttributes(fc, "scratch.gdb", ['year_'])
-arcpy.env.workspace = "scratch.gdb"
+arcpy.env.workspace = os.path.join(os.getcwd(), "scratch.gdb")
 split_fcs = arcpy.ListFeatureClasses("T*")
 print("Kayak data split into one feature class per year:")
 for f in split_fcs: print(f)
+fns.reset_ws()
 
-# Append file path
-split_fcs = ["scratch.gdb\\" + fc for fc in split_fcs]
+# append file path
+split_fcs = [f"scratch.gdb\\{fc}" for fc in split_fcs]
 
-reset_ws()
+# copy kayak site boundaries to scratch (all in one feature class, no year attribute)
+site_bnd_orig = f"{kelp_data_path}\\site_boundaries_2024_SPS_all"
+site_bnd = "scratch.gdb\\site_bnd"
+arcpy.management.CopyFeatures(site_bnd_orig, site_bnd)
 
-#### Summarize Within ####
+# spatial join kelp beds (1:m) - small absence polygons denote absence surveys
+print("Joining kelp beds to boundaries to get year...")
+site_bnd_join = "scratch.gdb\\site_bnd_join"
+arcpy.analysis.SpatialJoin(site_bnd, fc, site_bnd_join, "JOIN_ONE_TO_MANY")
+print(arcpy.GetMessages())
 
-for fc in split_fcs:
+# split by year, writing into data source gdb to avoid naming confusions since default name is T* for split ops
 
-    fc_desc = arcpy.Describe(fc)
+arcpy.analysis.SplitByAttributes(site_bnd_join, kelp_data_path, ['year_'])
+arcpy.env.workspace = os.path.join(os.getcwd(), kelp_data_path)
+site_bnd_split = arcpy.ListFeatureClasses("T*")
+site_bnd_split = [f"{kelp_data_path}\\{fc}" for fc in site_bnd_split]
+fns.reset_ws()
 
-    arcpy.analysis.SummarizeWithin(
-        in_polygons = containers,
-        in_sum_features = fc,
-         # save results in scratch gdb 
-        out_feature_class = ("scratch.gdb" + "\\sumwithin" + fc_desc.name)
-    ) 
+# delete absence polygons (where Shape_Area < VALUE)
+for fc in split_fcs: 
+    with arcpy.da.UpdateCursor(fc, ["SHAPE@", "Shape_Area"]) as cursor:
+        for row in cursor:
+            # Check if Shape_Area is less than 3.6
+            if row[1] < 3.6:
+                # Delete the feature
+                cursor.deleteRow()
+                print(f"Deleted feature with area {row[1]} in {fc}")
 
-    print("Summarize Within complete for " + fc_desc.name)
+# compile results to list
+fc_list = list(zip(split_fcs, site_bnd_split))
+print("Data to be analyzed: ")
+for kelp, svy in fc_list:
+    print(f"Kelp data: {kelp}")
+    print(f"Survey boundary: {svy}")
 
-# get list of summarize within output fcs
-arcpy.env.workspace = "scratch.gdb"
-sumwithin_fcs = arcpy.ListFeatureClasses('sum*')
-sumwithin_fcs = ["scratch.gdb\\" + fc for fc in sumwithin_fcs]
-reset_ws()
+# calculate presence ---------------------------------------
+print("Calculating presence...")
+fns.sum_kelp_within(fc_list, containers, variable_survey_area=True)
 
-# create function to convert fcs to dfs and store in list
-def df_from_fc(in_features):
-    sdf_list = []
-    for feature in in_features:
-        
-        fc_desc = arcpy.Describe(feature)
-        fc_year = (str(fc_desc.name[-4:])) # extract year
+arcpy.env.workspace = os.path.join(os.getcwd(), "scratch.gdb")
+sumwithin_fcs = arcpy.ListFeatureClasses("sum*")
+sumwithin_fcs = [f"scratch.gdb\\{fc}" for fc in sumwithin_fcs]
+print("Fcs to convert to tables:")
+print(sumwithin_fcs)
+fns.reset_ws()
 
-        sdf = pd.DataFrame.spatial.from_featureclass(feature) #use geoaccessor to convert ftr to df
-        sdf = sdf.filter(['SITE_CODE', 'sum_Area_SQUAREKILOMETERS'], axis = 1) #drop unneeded cols
-        # remove cols where sum_Area_ is actually zero - that indicates that site was not surveyed that year 
-        sdf = sdf[sdf.sum_Area_SQUAREKILOMETERS != 0]
-        sdf['year'] = fc_year
-        sdf['source'] = 'DNR_kayak'
-        sdf['presence'] = np.where(sdf['sum_Area_SQUAREKILOMETERS'] > 3.3445e-7, 1, 0) # calculate presence, this tiny # = the 'absence' polygons
-        sdf['sum_area_ha'] = sdf['sum_Area_SQUAREKILOMETERS'] * 100 # convert to hectares
-        sdf_list.append(sdf)
-
-        print("Converted " + fc_desc.name + " to sdf and added to list")
-
-    return sdf_list    
-
-# apply function to list of summarize within outputs
-sdf_list = df_from_fc(sumwithin_fcs)
+sdf_list = fns.df_from_fc(sumwithin_fcs, "WADNR_Kayak")
 
 print("This is the structure of the sdfs:")
 print(sdf_list[1].head())
 
-# Merge to one df
-all_data = pd.concat(sdf_list)
-all_data
+# merge to one df
+print("Combining to one dataframe")
+presence = pd.concat(sdf_list)
 
-print("All years of data have been merged to one df")
-print(" ")
-all_data.head()
+# calculate abundance --------------------------------------
+print("Calculating abundance...")
+abundance_containers = "LinearExtent.gdb\\abundance_containers"
+abundance = fns.calc_abundance(abundance_containers, fc_list, variable_survey_area=True)
+
+# add the year col
+abundance['year'] = abundance['fc_name'].str[-4:]
+abundance = abundance.drop(columns=['fc_name'])
+print("Abundance data: ")
+print(abundance.head())
+
+# combine and export -----------------------------------------
+results = pd.merge(presence, abundance, how="left", on=["SITE_CODE", "year"])
 
 # Write to csv
-all_data.to_csv("kelp_data_synth_results\\kayak_synth.csv")
-print("Saved as csv here: kelp_data_synth_results\\kayak_synth.csv")
+out_results = "kelp_data_synth_results\\dnr_kayak_synth.csv"
+results.to_csv(out_results)
+print(f"Saved as csv here: {out_results}")
 
-# Clear scratch gdb to keep project size down
-arcpy.env.workspace = "scratch.gdb"
-scratch_fcs = arcpy.ListFeatureClasses()
-for fc in scratch_fcs:
-    arcpy.Delete_management(fc)
-    print(f"Deleted feature class: {fc}")
+# clear scratch
+fns.clear_scratch()
+
+# clear the split survey boundaries 
+for fc in site_bnd_split:
+    print(f"Deleting {fc}...")
+    arcpy.management.DeleteFeatures(fc)
