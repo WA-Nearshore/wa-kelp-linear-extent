@@ -1,8 +1,12 @@
-#MRC Kayak data synth
+# MRC Kayak data synthesis for linear extent
 
-# Data was sent to me via fwd email from Jeff W on 2024-11-22 and includes a .gdb with data through 2023
-# Treating data as presence only, because there is not available annual survey extents and survey areas shift between years
+# Data was sent to me via fwd email from Jeff W on 2024-11-22 and includes a .gdb with data through 2023 "AllYearsAllSurveys_DNRMaster"
+# Treating data as presence only, because survey areas shift between years and we do not have each year's site boundaries
+# and frequently bed extents go beyond the site boundaries anyways
 
+# This dataset was MANUALLY reprojected to State Plane South -> result saved to scratch .gdb prior to running script
+
+# set environment -------------------------------------------------
 import arcpy
 import arcpy.analysis
 import arcpy.conversion
@@ -11,124 +15,93 @@ import pandas as pd
 import numpy as np
 from arcgis.features import GeoAccessor, GeoSeriesAccessor
 import os
+import sys
 
-# Set environment
+sys.path.append(os.getcwd())
+
+# import the project function library 
+import fns
+
 arcpy.env.overwriteOutput = True
 
-# store parent folder workspace in function 
-def reset_ws(): 
-    arcpy.env.workspace = os.getcwd()
+fns.reset_ws()
 
-reset_ws()
+# prep data -----------------------------------------------------
 
-#### Load Data ####
-
-# Containers
+# containers
 containers = "LinearExtent.gdb\\kelp_containers_v2"
-print("Using " + containers + " as container features")
-
-# Kayak annual polygons (all in one feature class)
-kelp_bed_fc = "\\kelp_data_sources\\AllYearsAllSurveys_DNRMaster.gdb\\AllYearsAllSurveys_DNRMaster.gdb\\AllYearsAllSurveys_Master" 
-print("Dataset to be summarized: " + kelp_bed_fc)
-
-### Define functions
-
-# Reproject kayak beds to match containers
-def reproject_kelp(containers, kelp_bed_fc):
-    container_sr = arcpy.Describe(containers).SpatialReference
-    arcpy.management.Project(kelp_bed_fc, "scratch.gdb\\kelp_project", container_sr)
-    kelp_bed_fc = "scratch.gdb\\kelp_project"
+print(f"Using {containers} as container features")
 # not clipping containers, will only include results where presence = 1 
 
-#### Split feature class into one fc per year ####
-def split_fc_by_year(kelp_bed_fc):
-    arcpy.analysis.SplitByAttributes(kelp_bed_fc, "scratch.gdb", ['Year'])
-    arcpy.env.workspace = "scratch.gdb"
-    split_fcs = arcpy.ListFeatureClasses("T*")
-    print("MRC Kayak data split into one feature class per year:")
-    for fc in split_fcs: print(fc)
-    split_fcs = ["scratch.gdb\\" + fc for fc in split_fcs]
-    reset_ws()
-    return split_fcs
+# kayak annual polygons (all in one feature class)
+kelp_bed_fc = "scratch.gdb\\AllYearsAllSurveys"
+print(f"Dataset to be summarized: {kelp_bed_fc}")
 
-#### Summarize Within ####
 
-def summarize_kelp_within(split_fcs, containers):
+# split into one fc per year
+arcpy.analysis.SplitByAttributes(kelp_bed_fc, "scratch.gdb", ['Year'])
+arcpy.env.workspace = os.path.join(os.getcwd(), "scratch.gdb")
+split_fcs = arcpy.ListFeatureClasses("T*")
+print("MRC Kayak data split into one feature class per year:")
+for fc in split_fcs: print(fc)
 
-    for fc in split_fcs:
+# append parent filepath
+split_fcs = [f"scratch.gdb\\{fc}" for fc in split_fcs]
+fns.reset_ws()
 
-        fc_desc = arcpy.Describe(fc)
+# calculate presence ---------------------------------------------------
+print("Calculating presence....")
+fns.sum_kelp_within(split_fcs, containers)
 
-        try: 
-            arcpy.analysis.SummarizeWithin(
-                in_polygons = containers,
-                in_sum_features = fc,
-                # save results in scratch gdb 
-                out_feature_class = ("scratch.gdb" + "\\sumwithin" + fc_desc.name)
-            ) 
+# get list of summarize within output fcs
+arcpy.env.workspace = os.path.join(os.getcwd(), "scratch.gdb")
+sumwithin_fcs = arcpy.ListFeatureClasses('sum*')
+print("Sum within results: ")
+print(sumwithin_fcs)
 
-            print("Summarize Within complete for " + fc_desc.name)
-            
-        except arcpy.ExecuteError:
-            arcpy.AddError(arcpy.GetMessages(2))
-        except:
-            e=sys.exc_info()[1]
-            print(e.args[0])
+# rename fcs to have year at end 
+for fc in sumwithin_fcs:
+    fc_desc = arcpy.Describe(fc)
+    new_name = f"sum{str(fc_desc.name[-6:-2])}"
+    arcpy.management.Rename(fc, new_name)
+    print(f"{fc_desc.name} renamed to {new_name}")
 
-        
+# reset list 
+sumwithin_fcs_renamed = arcpy.ListFeatureClasses("sum*")
+sumwithin_fcs_renamed = [f"scratch.gdb\\{fc}" for fc in sumwithin_fcs_renamed]
+fns.reset_ws()
 
-    # get list of summarize within output fcs
-    sumwithin_fcs = arcpy.ListFeatureClasses('sum*')
-    sumwithin_fcs = ["scratch.gdb\\" + fc for fc in sumwithin_fcs]
-    print(sumwithin_fcs)
-    reset_ws()
-    return sumwithin_fcs
+# convert to table
+print("Converting results to dataframes...")
+sdf_list = fns.df_from_fc(sumwithin_fcs_renamed, "MRC_Kayak")
 
-# create function to convert fcs to dfs and store in list
-def df_from_fc(in_features):
-    sdf_list = []
-    for feature in in_features:
-        
-        fc_desc = arcpy.Describe(feature)
-        fc_year = (str(fc_desc.name[4:8])) # extract year
+# compile to one df
+presence = pd.concat(sdf_list)
+print(f"Number of rows: {len(presence)}")
+# drop any rows where presence = 0 because we are treating this as presence-only
+print("Dropping rows where presence = 0...")
+presence = presence[presence['presence'] != 0]
+print(f"Number of rows: {len(presence)}")
 
-        sdf = pd.DataFrame.spatial.from_featureclass(feature) #use geoaccessor to convert fc to sdf
-        sdf = sdf.filter(['SITE_CODE', 'sum_Area_SQUAREKILOMETERS'], axis = 1) #drop unneeded cols
-        sdf['year'] = fc_year
-        sdf['source'] = 'MRC_kayak'
-        sdf['presence'] = 1 # only returned containers with some presence above, so all values should be 1 
-        sdf['sum_area_ha'] = sdf['sum_Area_SQUAREKILOMETERS'] * 100 # convert to hectares
-        sdf_list.append(sdf)
+# calculate abundance --------------------------------------------------
+print("Calculating abundance...")
+abundance_containers = "LinearExtent.gdb\\abundance_containers"
+abundance = fns.calc_abundance(abundance_containers, split_fcs)
 
-        print("Converted " + fc_desc.name + " to sdf and added to list")
+# add year col
+abundance['year'] = abundance['fc_name'].str[1:5]
+abundance = abundance.drop(columns=['fc_name'])
+print("Abundance data: ")
+print(abundance.head())
 
-    return sdf_list    
+# compile and export --------------------------------------------------
+result = pd.merge(presence, abundance, how='left', on=["SITE_CODE", "year"])
+print("Compiled results:")
+print(result.head())
 
-# APPLY FUNCTIONS
-#reproject_kelp(containers, kelp_bed_fc)
-split_fcs = split_fc_by_year(kelp_bed_fc)
-sumwithin_fcs = summarize_kelp_within(split_fcs, containers)
-sdf_list = df_from_fc(sumwithin_fcs)
+out_result = "kelp_data_synth_results\\MRC_kayak_synth.csv"
+result.to_csv(out_result)
+print(f"Results saved here: {out_result}")
 
-# Clear scratch gdb to keep project size down
-arcpy.env.workspace = "scratch.gdb"
-scratch_fcs = arcpy.ListFeatureClasses('T*')
-for fc in scratch_fcs:
-    arcpy.Delete_management(fc)
-    print(f"Deleted feature class: {fc}")
-
-print("This is the structure of the sdfs:")
-print(sdf_list[1].head())
-
-# Merge to one df
-all_data = pd.concat(sdf_list)
-all_data
-
-print("All years of data have been merged to one df")
-print(" ")
-all_data.head()
-
-# Write to csv
-all_data.to_csv("kelp_data_synth_results\\MRC_kayak_synth.csv")
-print("Saved as csv here: kelp_data_synth_results\\MRC_kayak_synth.csv")
-
+# clear workspace
+fns.clear_scratch()
