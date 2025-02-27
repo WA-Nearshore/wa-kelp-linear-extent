@@ -1,6 +1,4 @@
-# Combine data synthesis results
-# Gray McKenna
-# 2024-08-16
+# Combine linear extent data synthesis results and join to lines
 
 import arcpy
 import arcpy.management
@@ -42,16 +40,25 @@ def csv_to_pd(tbls):
 
     return dfs
 
+
 #### Define main function ####
-def get_most_recent(synth_dfs):
+def combine_results(synth_dfs):
 
     #### Bind rows ####
     all_synth = pd.concat(synth_dfs)
     print("Joined results df: ")
-    print(all_synth.head())
+    print(all_synth.head(5))
 
+    # handle instances where presence and abundance disagree
+    # if presence == 0 and abundance > 0, make abundance 0
+    # if presence == 1 and abundance == 0, make abundance 1
+    all_synth['abundance'] = all_synth.apply(
+    lambda row: 0 if row['presence'] == 0 and row['abundance'] > 0 else
+                1 if row['presence'] == 1 and row['abundance'] == 0 else
+                row['abundance'], axis=1)
+    
     # save this as the 'all_records" table. 
-    pd.DataFrame.to_csv(all_synth, "all_records.csv")
+    all_synth.to_csv("all_records.csv")
 
     #### Select most recent year for each site_code ####
 
@@ -72,11 +79,11 @@ def get_most_recent(synth_dfs):
         print("All sites have unique records for most recent year")
     
     # count number of records for most recent year
-    most_recent.loc[:, 'n_sources'] = most_recent.groupby('SITE_CODE')['SITE_CODE'].transform('count')
+    most_recent.loc[:, 'n_records_most_rec'] = most_recent.groupby('SITE_CODE')['SITE_CODE'].transform('count')
 
     # for years with multiple records, select row with max kelp area 
-    most_recent['sum_area_ha'].fillna(-9999, inplace=True) # replace NULL values with -9999 so the below code works
-    most_rec_max = most_recent[most_recent['sum_area_ha'] == most_recent.groupby('SITE_CODE')['sum_area_ha'].transform('max')]
+    most_recent['sum_Area_HECTARES'].fillna(-9999, inplace=True) # replace NULL values with -9999 so the below code works
+    most_rec_max = most_recent[most_recent['sum_Area_HECTARES'] == most_recent.groupby('SITE_CODE')['sum_Area_HECTARES'].transform('max')]
 
     # Set index to site_code 
     most_rec_max =  most_rec_max.set_index('SITE_CODE')
@@ -85,17 +92,16 @@ def get_most_recent(synth_dfs):
     most_rec_max =  most_rec_max.drop(['Unnamed: 0'], axis = 1)
 
     print("Preview of most recent year table:")
-    print( most_rec_max.head())
+    print(most_rec_max.head(5))
 
     # write to a csv
-    pd.DataFrame.to_csv( most_rec_max, 'most_recent.csv')
+    most_rec_max.to_csv('most_recent.csv')
     print("Written to csv: most_recent.csv")
 
-def join_results_to_lines(tbl, lines):
+def join_results_to_lines(tbl, lines, out_lines):
     #### Join to line segments fc ####
 
     # Copy all lines feature
-    out_lines = "LinearExtent.gdb//linear_extent_most_recent"
     arcpy.management.CopyFeatures(lines, out_lines)
     print("Copied " + lines + " for join")
 
@@ -117,6 +123,9 @@ def join_results_to_lines(tbl, lines):
 #### Run ####
 synth_dfs = csv_to_pd(tbls)
 
-get_most_recent(synth_dfs)
+combine_results(synth_dfs)
 
-join_results_to_lines('most_recent.csv', lines)
+join_results_to_lines('most_recent.csv', lines, "LinearExtent.gdb//linear_extent_most_recent")
+
+# this doesn't work because the underlying function cant handle 1:M cardinality
+#join_results_to_lines('all_records.csv', lines, "LinearExtent.gdb//linear_extent_all_records")
