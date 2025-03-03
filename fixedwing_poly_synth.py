@@ -47,7 +47,7 @@ flight_indices = {
 # set dictionary for classified polygons
 polygons = {key: f"fixed_wing_classified_polygons_2022.gdb\\{key}_2022" for key in flight_indices}
 
-# compile to list of paired values, including Aquatic Reserves separately
+# compile to list of paired values
 fc_list = [(polygons[key], flight_indices[key]) for key in polygons]
 
 # print data 
@@ -78,44 +78,53 @@ print(sdf_list[1].head())
 # merge to one df
 print("Combining to one dataframe")
 presence = pd.concat(sdf_list)
+print(f"Total records: {len(presence)}")
 
 # calculate abundance ------------------------------------------------------
 print("Calculating abundance....")
 abundance_containers = "LinearExtent.gdb\\abundance_containers"
-kelp_fcs = [f"{kelp_data_path}fixed_wing_classified_polygons_2022.gdb\\{key}_2022" for key in flight_indices]
+kelp_fcs = [pair[0] for pair in fc_list]
 abundance = fns.calc_abundance(abundance_containers, kelp_fcs)
 
 # add the year col
 abundance['year'] = abundance['fc_name'].str[-4:]
 abundance = abundance.drop(columns=['fc_name'])
+print("Reformatted abundance table:")
+print(abundance.head())
 
 # tidy and export ----------------------------------------------------------
 
 # check if site codes are unique --> this logic needs to be updated when more years are added 
-try: 
-    if presence['SITE_CODE'].is_unique == False:
+def check_unique(df, field):
+    if df['SITE_CODE'].is_unique == False:
         print("The following sites have more than 1 record for the most recent year:")
-        dupes = presence[presence.duplicated('SITE_CODE', keep=False) == True].sort_values('SITE_CODE')
+        dupes = df[df.duplicated('SITE_CODE', keep=False) == True].sort_values('SITE_CODE')
         print(dupes)
 
-        print("Selecting record with larger kelp area...")
+        print(f"Selecting record with largest value for {field}")
         # If multiple records exist for a single site, select the one with max kelp area 
-        max_presence_per_site = presence.groupby('SITE_CODE')['sum_Area_HECTARES'].transform('max')
+        max_presence_per_site = df.groupby('SITE_CODE')[field].transform('max')
 
         # Grab those rows
-        all_data_max_pres = presence[presence['sum_area_ha'] == max_presence_per_site]
+        all_data_max_pres = df[df[field] == max_presence_per_site]
 
         # Drop the remaining duplicates (should just be where presence = 0 for both)
-        presence = all_data_max_pres.drop_duplicates()
+        df = all_data_max_pres.drop_duplicates()
+        print('All sites now have a single record')
+
+        return df
 
     else:
         print("All sites have unique records from fixed wing dataset")
-except: 
-    print("Unable to check for duplicative records")
 
-print("All years of data have been merged to one df")
+
+print("Tidying presence data...")
+presence = check_unique(presence, 'sum_Area_HECTARES')
+print("Tidying abundance data...")
+abundance = check_unique(abundance, 'abundance')
 
 results = pd.merge(presence, abundance, how="left", on=["SITE_CODE", "year"])
+print(f"Total records: {len(results)}")
 
 # Write to csv
 out_results = "kelp_data_synth_results\\fixedwing_poly_synth.csv"
