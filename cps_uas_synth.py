@@ -93,7 +93,7 @@ print(presence.head())
 
 print("Calculating abundance...")
 abundance_containers = "LinearExtent.gdb\\abundance_containers"
-abundance = fns.calc_abundance(abundance_containers, fc_list, variable_survey_area=True)
+abundance = fns.calc_abundance(abundance_containers, split_fcs)
 
 abundance['year'] = abundance['fc_name'].str[-4:]
 abundance = abundance.drop(columns=['fc_name'])

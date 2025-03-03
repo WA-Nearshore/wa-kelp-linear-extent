@@ -82,7 +82,8 @@ presence = pd.concat(sdf_list)
 # calculate abundance ------------------------------------------------------
 print("Calculating abundance....")
 abundance_containers = "LinearExtent.gdb\\abundance_containers"
-abundance = fns.calc_abundance(abundance_containers, fc_list, variable_survey_area=True)
+kelp_fcs = [f"{kelp_data_path}fixed_wing_classified_polygons_2022.gdb\\{key}_2022" for key in flight_indices]
+abundance = fns.calc_abundance(abundance_containers, kelp_fcs)
 
 # add the year col
 abundance['year'] = abundance['fc_name'].str[-4:]

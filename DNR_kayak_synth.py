@@ -59,7 +59,6 @@ arcpy.analysis.SpatialJoin(site_bnd, fc, site_bnd_join, "JOIN_ONE_TO_MANY")
 print(arcpy.GetMessages())
 
 # split by year, writing into data source gdb to avoid naming confusions since default name is T* for split ops
-
 arcpy.analysis.SplitByAttributes(site_bnd_join, kelp_data_path, ['year_'])
 arcpy.env.workspace = os.path.join(os.getcwd(), kelp_data_path)
 site_bnd_split = arcpy.ListFeatureClasses("T*")
@@ -106,7 +105,7 @@ presence = pd.concat(sdf_list)
 # calculate abundance --------------------------------------
 print("Calculating abundance...")
 abundance_containers = "LinearExtent.gdb\\abundance_containers"
-abundance = fns.calc_abundance(abundance_containers, fc_list, variable_survey_area=True)
+abundance = fns.calc_abundance(abundance_containers, split_fcs)
 
 # add the year col
 abundance['year'] = abundance['fc_name'].str[-4:]
@@ -125,7 +124,7 @@ print(f"Saved as csv here: {out_results}")
 # clear scratch
 fns.clear_scratch()
 
-# clear the split survey boundaries 
+# clear the split survey boundaries --> this isn't working for some reason
 for fc in site_bnd_split:
     print(f"Deleting {fc}...")
     arcpy.management.DeleteFeatures(fc)
