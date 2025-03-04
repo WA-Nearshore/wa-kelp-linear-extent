@@ -70,7 +70,7 @@ print("Fcs to convert to tables:")
 print(sumwithin_fcs)
 fns.reset_ws()
 
-sdf_list = fns.df_from_fc(sumwithin_fcs, "WADNR_FixedWingAerialImagery")
+sdf_list = fns.df_from_fc(sumwithin_fcs, "WADNR_KAM")
 
 print("This is the structure of the sdfs:")
 print(sdf_list[1].head())
