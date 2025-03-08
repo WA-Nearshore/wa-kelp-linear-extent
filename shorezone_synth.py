@@ -5,6 +5,8 @@
 # Data downloaded 2024-07-30 from: 
 # 20240730 https://fortress.wa.gov/dnr/adminsa/gisdata/datadownload/state_DNR_ShoreZone.zip
 
+# note to self -- output format needs some tidying
+
 # set env -----------------------------------------------
 import arcpy
 import os
@@ -38,10 +40,12 @@ svy_lines = "kelp_data_sources\\state_DNR_ShoreZone\\shorezone.gdb\\szline"
 # convert lines to polygons ------------------------------
 
 # buffer fkelplin by ~100m
+print("Buffering lines...")
 buff_lines = "scratch.gdb\\fkelplin_buff100m"
 arcpy.analysis.Buffer(kelp_lines, buff_lines, '100 METERS')
 
 # Remove overlaps 
+print("Removing overlaps...")
 buff_lines_RO = "scratch.gdb\\fkelplin_buf100m_removeO"
 arcpy.analysis.RemoveOverlapMultiple(
     in_features=buff_lines,
@@ -51,6 +55,7 @@ arcpy.analysis.RemoveOverlapMultiple(
 )
 
 # add field for presence (if FLOATKELP is not absent, its present)
+print("Calculating presence..")
 arcpy.management.CalculateField(
     in_table = buff_lines_RO, 
     field = 'presence',
@@ -65,6 +70,7 @@ arcpy.management.CalculateField(
 )
 
 # Join szline
+print("Getting year attribute...")
 buff_line_join = arcpy.management.AddJoin(buff_lines_RO, 'UNIT_ID', svy_lines, 'UNIT_ID')
 
 # grab year from the date field 
@@ -83,6 +89,7 @@ buff_line = arcpy.management.RemoveJoin(buff_line_join)
 # calculate presence --------------------------------------------
 
 # Run an intersect
+print("Intersecting shorezone data with containers...")
 kelp_int = "scratch.gdb\kelplin_cont_int"
 arcpy.analysis.PairwiseIntersect(
     in_features=[buff_line, containers],
@@ -92,6 +99,7 @@ arcpy.analysis.PairwiseIntersect(
     output_type="INPUT"
 )
 # Add area field 
+print("Calculating area...")
 arcpy.management.CalculateField(
     in_table = kelp_int, 
     field = 'area',
@@ -99,11 +107,13 @@ arcpy.management.CalculateField(
 )
 
 # Export the intersect table to pd dataframe
+print("Exporting to dataframe...")
 df = pd.DataFrame.spatial.from_featureclass(kelp_int)
 df['area'] = pd.to_numeric(df['area'])
 df['area'] = df['area'].fillna(0)
 
 # calculate abundance -----------------------------------------
+print("Calculating abundance..")
 # Compute abundance category per site
 sum_area = (df.groupby(['SITE_CODE', 'FLOATKELP'])
             .agg(total_area=('area', 'sum'))
@@ -113,20 +123,14 @@ sum_area = (df.groupby(['SITE_CODE', 'FLOATKELP'])
 
 # Calculate presence percentage and abundance category
 sum_area['pres_pct'] = (sum_area['CONTINUOUS'] + sum_area['PATCHY'] * 0.5) / (sum_area['CONTINUOUS'] + sum_area['PATCHY'] + sum_area['ABSENT'])
-sum_area['abundance_cat'] = pd.cut(sum_area['pres_pct'], 
+sum_area['abundance'] = pd.cut(sum_area['pres_pct'], 
                                    bins=[-np.inf, 0, 0.25, 0.5, 0.75, np.inf], 
                                    labels=[0, 1, 2, 3, 4])
 
 # Presence category (binary: 1 if presence > 0, else 0)
 sum_area['presence'] = np.where(sum_area['pres_pct'] > 0, 1, 0)
 
-# Plot the histogram for abundance categories
-sum_area['abundance_cat'].value_counts().sort_index().plot(kind='bar')
-plt.xlabel('Abundance Category')
-plt.ylabel('Frequency')
-plt.title('Abundance Category Distribution')
-plt.show()
-
+print("Tidying results...")
 # Select year for each site with the maximum area
 site_year = (df.groupby(['SITE_CODE', 'year'])
              .agg(year_area=('area', 'sum'))
@@ -143,5 +147,11 @@ print(f"Unique SITE_CODEs in sum_area: {sum_area.index.nunique()}")
 # Join the results on SITE_CODE
 result = pd.merge(sum_area, site_year, on='SITE_CODE')
 
+# reformat table 
+result = result[['SITE_CODE', 'abundance', 'presence', 'year']]
+result['source'] = 'WADNR_ShoreZone'
+print("Results table:")
+print(result.head())
+
 # Write the result to CSV
-result.to_csv(r"kelp_data_synth_results\shorezone_results.csv")
+result.to_csv(r"kelp_data_synth_results\shorezone_synth.csv")
