@@ -6,6 +6,7 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 import os
+import datetime
 
 #### Set Environment ####
 arcpy.env.overwriteOutput = True
@@ -26,16 +27,21 @@ for t in tbls: print(t)
 
 # linear extent fc 
 lines = "LinearExtent.gdb//all_lines_clean_v2"
-print("Using " + lines + " as line segment feature class")
+print(f"Using {lines} as line segment feature class")
 
 #### Create function to read a list of csv tbls to pandas dataframes ####
 def csv_to_pd(tbls):
+
+    pd.set_option('display.max_columns', 7)
     
     dfs = []
 
     for t in tbls:
         df = pd.read_csv(t)
+        print(f"{t} converted to dataframe:")
         print(df.head())
+        print(df.dtypes)
+        print(f"Total records: {len(df)}")
         dfs.append(df)
 
     return dfs
@@ -43,7 +49,7 @@ def csv_to_pd(tbls):
 
 #### Define main function ####
 def combine_results(synth_dfs):
-
+    pd.set_option('display.max_rows', 7)
     #### Bind rows ####
     all_synth = pd.concat(synth_dfs)
     print("Joined results df: ")
@@ -58,7 +64,9 @@ def combine_results(synth_dfs):
                 row['abundance'], axis=1)
     
     # save this as the 'all_records" table. 
+    print("Compiled all results and written to csv: all_records.csv" )
     all_synth.to_csv("all_records.csv")
+    print(f"Total records: {len(all_synth)}")
 
     #### Select most recent year for each site_code ####
 
@@ -69,7 +77,6 @@ def combine_results(synth_dfs):
     most_recent = all_synth[all_synth['year'] == most_recent_year]
 
     # Check if site_code is unique
-    pd.set_option('display.max_rows', None)
     if most_recent['SITE_CODE'].is_unique == False:
         print("The following sites have more than 1 record for the most recent year:")
         dupes = most_recent[most_recent.duplicated('SITE_CODE', keep=False) == True].sort_values('SITE_CODE')
@@ -98,34 +105,77 @@ def combine_results(synth_dfs):
     most_rec_max.to_csv('most_recent.csv')
     print("Written to csv: most_recent.csv")
 
-def join_results_to_lines(tbl, lines, out_lines):
+def join_results_to_lines(tbl, lines, out_lines, all_records=False):
     #### Join to line segments fc ####
+    # note to self: need to delete the extra fields length_m and SITE_CODE_1 from the outputs 
+    # also: could use fieldmapping to set the field types more appropriately here 
 
     # Copy all lines feature
     arcpy.management.CopyFeatures(lines, out_lines)
     print("Copied " + lines + " for join")
 
-    # Validate join
-    arcpy.management.ValidateJoin(out_lines, 'SITE_CODE', tbl, 'SITE_CODE')
-    print(arcpy.GetMessages())
+    if all_records:
 
-    # Join
-    arcpy.management.JoinField(
-        in_data = out_lines,
-        in_field = 'SITE_CODE',
-        join_table = tbl,
-        join_field = 'SITE_CODE'
-    )
+        # Export table to the same gdb
+        date = datetime.date.today().strftime("%Y%m%d")
+        out_path = "LinearExtent.gdb"
+        new_table = f"all_records_{date}"
+        arcpy.conversion.TableToTable(tbl, out_path, new_table)
+        new_table = f"LinearExtent.gdb\\all_records_{date}"
 
-    print('Most recent kelp presence data has been joined to lines')
-    print('Results available at ' + out_lines)
+        # Validate join
+        arcpy.management.ValidateJoin(out_lines, 'SITE_CODE', new_table, 'SITE_CODE')
+        print(arcpy.GetMessages())
+
+        # Join--> convert to in memory join and then export 
+        arcpy.management.AddJoin(out_lines, "SITE_CODE", new_table, "SITE_CODE", "KEEP_ALL", "", "", "JOIN_ONE_TO_MANY")
+        joined_lines = f"{out_lines}_export"
+        arcpy.conversion.ExportFeatures(out_lines, joined_lines) 
+
+        print('Most all records data has been joined to lines')
+        print(f'Results available at {joined_lines}')
+
+    else:
+        # Validate join
+        arcpy.management.ValidateJoin(out_lines, 'SITE_CODE', tbl, 'SITE_CODE')
+        print(arcpy.GetMessages())
+
+        # Join
+        arcpy.management.JoinField(
+            in_data = out_lines,
+            in_field = 'SITE_CODE',
+            join_table = tbl,
+            join_field = 'SITE_CODE'
+        )
+
+        print('Most recent kelp presence data has been joined to lines')
+        print('Results available at ' + out_lines)
 
 #### Run ####
 synth_dfs = csv_to_pd(tbls)
 
 combine_results(synth_dfs)
 
-join_results_to_lines('most_recent.csv', lines, "LinearExtent.gdb//linear_extent_most_recent")
+most_rec_fc = "LinearExtent.gdb//linear_extent_most_recent"
+join_results_to_lines('most_recent.csv', lines, most_rec_fc)
 
-# this doesn't work because the underlying function cant handle 1:M cardinality
-#join_results_to_lines('all_records.csv', lines, "LinearExtent.gdb//linear_extent_all_records")
+# Append metadata
+meta = "linear_extent_most_recent.xml"
+
+# Create a metadata object for the feature class
+most_rec_metadata = arcpy.metadata.Metadata(most_rec_fc)
+
+# Read the metadata from the XML file
+most_rec_metadata.importMetadata(meta)
+
+# Apply the loaded metadata to the feature class
+most_rec_metadata.save()
+
+print(f"Applied metadata has been successfully applied to {most_rec_fc}.")
+
+
+# this doesnt work right now, don't know why
+#join_results_to_lines(tbl='all_records.csv', 
+#                    lines=lines, 
+#                     out_lines="LinearExtent.gdb//linear_extent_all_records", 
+#                      all_records=True)
