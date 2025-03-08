@@ -1,32 +1,31 @@
 # Summarize Samish Indian Nation's kelp polygons from drone surveys to linear extent
-# Gray McKenna
-# 2024-08-16
 
 # files from K:\kelp\VScanopy\data\SJI\Samish_spatial_data_2021_delivery
 
+# set environment ---------------------------------------------------------
 import arcpy
 import arcpy.analysis
 import arcpy.conversion
 import pandas as pd
 import numpy as np
 import os
+import sys
 from arcgis.features import GeoAccessor, GeoSeriesAccessor
 
-# Set environment
+sys.path.append(os.getcwd())
+
+# import the project function library 
+import fns
+
 arcpy.env.overwriteOutput = True
 
-# store parent folder workspace in function 
-def reset_ws(): 
-    arcpy.env.workspace = os.getcwd()
+fns.reset_ws()
 
-reset_ws()
+# prep data ------------------------------------------------------------
 
-
-#### Load Data ####
-
-# Containers
+# containers
 containers = "LinearExtent.gdb\\kelp_containers_v2"
-print("Using " + containers + " as container features")
+print(f"Using {containers} as container features")
 
 # San Juans polygons
 kelp_data_path = "kelp_data_sources\\Samish_spatial_data_2021_delivery"
@@ -36,41 +35,35 @@ for file in os.listdir(kelp_data_path):
         kelp_shps.append(file)
 print(kelp_shps)
 
-# For now, drop the skagit data since I don't have the footprint
+# For now, drop the skagit data since I don't have the footprint --> could handle as presence only
 kelp_shps.remove('SkagitCO_2019_Kelp.shp')
 
-# assign each layer to variable
-kelp2004_2006shp = kelp_data_path + "\\" + kelp_shps[0] 
-kelp2016shp = kelp_data_path + "\\" + kelp_shps[1]
-kelp2019shp = kelp_data_path + "\\" + kelp_shps[2]
-
-shp_list = [kelp2004_2006shp, kelp2016shp, kelp2019shp]
+# append parent file path
+kelp_shps = [f"{kelp_data_path}\\{shp}" for shp in kelp_shps]
 print("Datasets to be summarized:")
-print(shp_list)
+for shp in kelp_shps:
+    print(shp)
 
 # convert shapefiles to feature classes in scratch.gdb
 kelp_fcs = []
 
-for shp in shp_list:
-    out_fc = "kelp_" + shp[-13:-9]
+for shp in kelp_shps:
+    out_fc = f"kelp_{shp[-13:-9]}"
     arcpy.conversion.FeatureClassToFeatureClass(shp, "scratch.gdb", out_fc)
-    kelp_fcs.append("scratch.gdb\\" + out_fc)
+    kelp_fcs.append(f"scratch.gdb\\{out_fc}")
 
 print("Shapefiles converted to feature classes:")
 print(kelp_fcs)
 
-#### Clip Containers to survey areas ####
 # each year has its own boundary
-aoi2004 = kelp_data_path + "\\SanJuan_Footprint_2004\\2004_2006_kelp_image_index.shp"
-aoi2006 = kelp_data_path + "\\SanJuan_Footprint_2006\\2004_2006_kelp_image_index.shp"
-aoi2016 = kelp_data_path + "\\Boundary_2016\Boundary_2016.shp"
-aoi2019 = kelp_data_path + "\\Boundary_2019\Boundary_2019.shp"
+aoi2004 = f"{kelp_data_path}\\SanJuan_Footprint_2004\\2004_2006_kelp_image_index.shp"
+aoi2006 = f"{kelp_data_path}\\SanJuan_Footprint_2006\\2004_2006_kelp_image_index.shp"
+aoi2016 = f"{kelp_data_path}\\Boundary_2016\Boundary_2016.shp"
+aoi2019 = f"{kelp_data_path}\\Boundary_2019\Boundary_2019.shp"
 
-# define out fcs
-containers2004 = "scratch.gdb\\containers2004"
-containers2006 = "scratch.gdb\\containers2006"
-containers2016 = "scratch.gdb\\containers2016"
-containers2019 = "scratch.gdb\\containers2019"
+# create paired list of survey boundaries and kelp data
+# the 2004 and 2006 results are merged 
+fc_list = [(kelp_fcs[0], aoi2004), (kelp_fcs[0], aoi2006), (kelp_fcs[1], aoi2016, kelp_fcs[2], aoi2019)]
 
 arcpy.analysis.Clip(containers, aoi2004, containers2004)
 print("Created " + containers2004 + " using " + aoi2004 + " as survey boundary")
