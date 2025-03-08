@@ -5,6 +5,8 @@
 # and frequently bed extents go beyond the site boundaries anyways
 
 # This dataset was MANUALLY reprojected to State Plane South -> result saved to scratch .gdb prior to running script
+# Just noting that there are multiple beds per year in this dataset which is not currently handled with this logic 
+# I believe the years are summed together in sumwithin
 
 # set environment -------------------------------------------------
 import arcpy
@@ -34,7 +36,7 @@ print(f"Using {containers} as container features")
 # not clipping containers, will only include results where presence = 1 
 
 # kayak annual polygons (all in one feature class)
-kelp_bed_fc = "scratch.gdb\\AllYearsAllSurveys"
+kelp_bed_fc = os.path.join(os.getcwd(), "scratch.gdb\\AllYearsAllSurveys")
 print(f"Dataset to be summarized: {kelp_bed_fc}")
 
 
