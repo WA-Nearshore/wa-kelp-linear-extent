@@ -159,8 +159,9 @@ combine_results(synth_dfs)
 most_rec_fc = "LinearExtent.gdb//linear_extent_most_recent"
 join_results_to_lines('most_recent.csv', lines, most_rec_fc)
 
-# Append metadata
-meta = "linear_extent_most_recent.xml"
+# Append metadata ----
+# most_rec
+meta = "linear_extent_most_recent_v2.xml"
 
 # Create a metadata object for the feature class
 most_rec_metadata = arcpy.metadata.Metadata(most_rec_fc)
@@ -173,6 +174,7 @@ most_rec_metadata.save()
 
 print(f"Applied metadata has been successfully applied to {most_rec_fc}.")
 
+print(f"Applied metadata has been successfully applied to {most_rec_fc}.")
 
 # this doesnt work right now, don't know why
 #join_results_to_lines(tbl='all_records.csv', 
