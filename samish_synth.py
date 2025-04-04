@@ -1,4 +1,4 @@
-# Summarize Samish Indian Nation's kelp polygons from drone surveys to linear extent
+# Summarize Samish Indian Nation's kelp polygons from assorted years of aerial surveys to linear extent
 
 # files from K:\kelp\VScanopy\data\SJI\Samish_spatial_data_2021_delivery
 
@@ -45,14 +45,24 @@ for shp in kelp_shps:
     print(shp)
 
 # convert shapefiles to feature classes in scratch.gdb
+print("Converting to feature classes...")
 kelp_fcs = []
-
 for shp in kelp_shps:
     out_fc = f"kelp_{shp[-13:-9]}"
     arcpy.conversion.FeatureClassToFeatureClass(shp, "scratch.gdb", out_fc)
     kelp_fcs.append(f"scratch.gdb\\{out_fc}")
+    print(f"{shp} converted to fc:{out_fc}")
 
-print("Shapefiles converted to feature classes:")
+# make a copy of kelp_2006 and call it 2004
+print("Creating the 2004 fc...")
+arcpy.conversion.FeatureClassToFeatureClass("scratch.gdb\\kelp_2006", "scratch.gdb", "kelp_2004")
+# add to list
+kelp_fcs.append("scratch.gdb\\kelp_2004")
+# will be handled separately in the presence function
+
+# ensure that list is earliest year first
+kelp_fcs.sort(key=lambda x: int(x.split('_')[1]))
+print("Sorted list:")
 print(kelp_fcs)
 
 # each year has its own boundary
@@ -62,91 +72,93 @@ aoi2016 = f"{kelp_data_path}\\Boundary_2016\Boundary_2016.shp"
 aoi2019 = f"{kelp_data_path}\\Boundary_2019\Boundary_2019.shp"
 
 # create paired list of survey boundaries and kelp data
-# the 2004 and 2006 results are merged 
-fc_list = [(kelp_fcs[0], aoi2004), (kelp_fcs[0], aoi2006), (kelp_fcs[1], aoi2016, kelp_fcs[2], aoi2019)]
+# the 2004 and 2006 results are merged into 1 kelp fc 
+fc_list = [(kelp_fcs[0], aoi2004), (kelp_fcs[1], aoi2006), (kelp_fcs[2], aoi2016), (kelp_fcs[3], aoi2019)]
 
-arcpy.analysis.Clip(containers, aoi2004, containers2004)
-print("Created " + containers2004 + " using " + aoi2004 + " as survey boundary")
-arcpy.analysis.Clip(containers, aoi2006, containers2006)
-print("Created " + containers2006 + " using " + aoi2006 + " as survey boundary")
-arcpy.analysis.Clip(containers, aoi2016, containers2016)
-print("Created " + containers2016 + " using " + aoi2016 + " as survey boundary")
-arcpy.analysis.Clip(containers, aoi2019, containers2019)
-print("Created " + containers2019 + " using " + aoi2019 + " as survey boundary")
+# calculate presence -------------------------------------------------------
+print("Calculating presence...")
+fns.sum_kelp_within(fc_list, containers, variable_survey_area=True)
 
-
-#### Summarize Within ####
-
-def sum_kelp_within(fc, container):
-
-    fc_desc = arcpy.Describe(fc)
-    fc_year = container[-4:]
-    out_fc_path = ("scratch.gdb/sumwithin" + fc_year)
-    
-    arcpy.analysis.SummarizeWithin(
-        in_polygons = container,
-        in_sum_features = fc,
-        out_feature_class = out_fc_path
-    )
-
-    print("Summarize Within complete for " + fc_desc.name + " year = " + fc_year)
-
-sum_kelp_within(kelp_fcs[0], containers2004)
-sum_kelp_within(kelp_fcs[0], containers2006)
-sum_kelp_within(kelp_fcs[1], containers2016)
-sum_kelp_within(kelp_fcs[2], containers2019)
-
-
-#### Convert to dfs ####
-# get a list of sumwithin fcs
-arcpy.env.workspace = "scratch.gdb"
+# get list of summarize within output fcs
+arcpy.env.workspace = os.path.join(os.getcwd(), "scratch.gdb")
 sumwithin_fcs = arcpy.ListFeatureClasses('sum*')
-sumwithin_fcs = ["scratch.gdb\\" + fc for fc in sumwithin_fcs]
-reset_ws()
 
-# create function to convert fcs to dfs and store in list
-def df_from_fc(in_features, source):
-    sdf_list = []
-    for feature in in_features:
-        
-        fc_desc = arcpy.Describe(feature)
-        fc_year = fc_desc.name[-4:] # extract year
+sdf_list = fns.df_from_fc(sumwithin_fcs, "Samish_AerialSurveys")
 
-        sdf = pd.DataFrame.spatial.from_featureclass(feature) #use geoaccessor to convert fc to df
-        sdf = sdf.filter(['SITE_CODE', 'sum_Area_SQUAREKILOMETERS'], axis = 1) #drop unneeded SHAPE cols
-        sdf['year'] = fc_year
-        sdf['source'] = source
-        sdf['presence'] = np.where(sdf['sum_Area_SQUAREKILOMETERS'] > 0, 1, 0)
-        sdf['sum_area_ha'] = sdf['sum_Area_SQUAREKILOMETERS'] * 100
+fns.reset_ws()
 
-        sdf_list.append(sdf)
-
-        print("Converted " + fc_desc.name + " to sdf and added to list")
-
-    return sdf_list    
-
-# apply function to list of summarize within outputs
-sdf_list_1 = df_from_fc(sumwithin_fcs[:2], 'Friends of the San Juans')
-sdf_list_2 = df_from_fc(sumwithin_fcs[-2:], 'San Juan County')
-sdf_list = sdf_list_1 + sdf_list_2
-
-print("Structure of dfs: ")
+print("This is the structure of the presence sdfs:")
 print(sdf_list[1].head())
 
-# Merge to one df
-all_data = pd.concat(sdf_list)
+# merge to one df
+presence = pd.concat(sdf_list)
 
 print("All years of data have been merged to one df")
 print(" ")
-print(all_data.head())
+print(presence.head())
 
-# Write to csv
-all_data.to_csv("kelp_data_synth_results\\sji_synth.csv")
+# calculate abundance ------------------------------------------------------
+print("Calculating abundance...")
+abundance_containers = "LinearExtent.gdb\\abundance_containers"
+abundance = fns.calc_abundance(abundance_containers, kelp_fcs)
+
+# add the year col
+abundance['year'] = abundance['fc_name'].str[-4:]
+abundance = abundance.drop(columns=['fc_name'])
+print("Reformatted abundance table:")
+print(abundance.head())
+
+# process skagitco 2019 data ------------------------------------------------
+print("Processing Skagit 2019 data as presence only...")
+# no survey footprint exists so we treat as presence only
+skagit2019shp = f"{kelp_data_path}\\SkagitCO_2019_Kelp.shp"
+
+# convert to fc and add to a 1-element list
+arcpy.conversion.FeatureClassToFeatureClass(skagit2019shp, "scratch.gdb", "ska2019")
+skagit2019fc = ["scratch.gdb\\ska2019"]
+
+# get presence
+fns.sum_kelp_within(skagit2019fc, containers)
+sumska2019 = ["scratch.gdb\\sumwithinska2019"]
+ska_presence_list = fns.df_from_fc(sumska2019, "Samish_AerialSurveys")
+
+# extract the dataframe from the list format
+ska_presence = ska_presence_list[0]
+print("Skagit2019 presence data:")
+print(ska_presence.head())
+
+# drop rows where presence = 0 
+ska_presence = ska_presence[ska_presence['presence'] != 0]
+
+# get abundance
+ska_abundance = fns.calc_abundance(abundance_containers, skagit2019fc)
+
+# add the year col
+ska_abundance['year'] = ska_abundance['fc_name'].str[-4:]
+ska_abundance = ska_abundance.drop(columns=['fc_name'])
+print("Reformatted skagit abundance table:")
+print(ska_abundance.head())
+
+ska_results = pd.merge(ska_presence, ska_abundance, how="left", on=["SITE_CODE", "year"])
+
+# compile and export --------------------------------------------------
+results = pd.merge(presence, abundance, how="left", on=["SITE_CODE", "year"])
+
+# add skagit results
+results = pd.concat([results, ska_results])
+
+print("Results table:")
+print(results.head())
+
+# if there are sites with 2004 and 2006, we need to drop the 2004 results. 
+# The 2004 & 2006 footprints overlap, but the kelp fc is a composite of both of these. Assume the more recent year was used but who knows, actually.
+
+site_codes_with_2006 = results[results['year'] == 2006]['SITE_CODE'].unique()
+results = results[~((results['year'] == 2004) & (results['SITE_CODE'].isin(site_codes_with_2006)))]
+
+results.to_csv("kelp_data_synth_results\\sji_synth.csv")
 print("Saved as csv here: kelp_data_synth_results\\sji_synth.csv")
 
 # Clear scratch gdb to keep project size down
-arcpy.env.workspace = "scratch.gdb"
-scratch_fcs = arcpy.ListFeatureClasses()
-for fc in scratch_fcs:
-    arcpy.Delete_management(fc)
-    print(f"Deleted feature class: {fc}")
+fns.clear_scratch()
+
