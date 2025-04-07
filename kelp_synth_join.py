@@ -159,23 +159,31 @@ combine_results(synth_dfs)
 most_rec_fc = "LinearExtent.gdb//linear_extent_most_recent"
 join_results_to_lines('most_recent.csv', lines, most_rec_fc)
 
-# Append metadata ----
-# most_rec
-meta = "linear_extent_most_recent_v2.xml"
-
-# Create a metadata object for the feature class
-most_rec_metadata = arcpy.metadata.Metadata(most_rec_fc)
-
-# Read the metadata from the XML file
-most_rec_metadata.importMetadata(meta)
-
-# Apply the loaded metadata to the feature class
-most_rec_metadata.save()
-
-print(f"Applied metadata has been successfully applied to {most_rec_fc}.")
-
 # create the all records dataset ----------------------------------------------------
+
 join_results_to_lines(tbl='all_records.csv', 
                     lines=lines, 
                      out_lines=os.path.join(os.getcwd(), "LinearExtent.gdb","linear_extent_all_records"), 
                       all_records=True)
+
+# Append metadata ----------------------------------------------------------------------
+def apply_metadata(feature_class, metadata_file_path):
+    # Create a metadata object for the feature class
+    metadata_object = arcpy.metadata.Metadata(feature_class)
+
+    # Read the metadata from the XML file into the metadata object
+    metadata_object.importMetadata(metadata_file_path)
+
+    # Apply the loaded metadata to the feature class
+    metadata_object.save()
+
+    print(f"Metadata from file {metadata_file_path} has been successfully applied to {feature_class}.")
+
+most_rec_meta = "linear_extent_most_recent_v2.xml"
+all_records_meta = "linear_extent_all_records.xml"
+
+apply_metadata(most_rec_fc, most_rec_meta)
+apply_metadata("LinearExtent.gdb\\linear_extent_all_records", all_records_meta)
+
+# that's it -------------------------------------------------------------------------------
+print("Fin.")
