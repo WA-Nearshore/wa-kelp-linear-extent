@@ -7,8 +7,10 @@ import numpy as np
 from pathlib import Path
 import os
 import datetime
+from arcgis.features import GeoAccessor, GeoSeriesAccessor
 
-#### Set Environment ####
+# set environment -----------------------------------------------------------------------
+
 arcpy.env.overwriteOutput = True
 
 # store parent folder workspace in function 
@@ -17,7 +19,7 @@ def reset_ws():
 
 reset_ws()
 
-#### Load Data ####
+# load data -------------------------------------------------------------------------------
 
 # Kelp data summarize within results tables
 synth_folder = Path("kelp_data_synth_results")
@@ -29,7 +31,8 @@ for t in tbls: print(t)
 lines = "LinearExtent.gdb//all_lines_clean_v2"
 print(f"Using {lines} as line segment feature class")
 
-#### Create function to read a list of csv tbls to pandas dataframes ####
+# define functions -----------------------------------------------------------------------
+
 def csv_to_pd(tbls):
 
     pd.set_option('display.max_columns', 7)
@@ -46,8 +49,6 @@ def csv_to_pd(tbls):
 
     return dfs
 
-
-#### Define main function ####
 def combine_results(synth_dfs):
     pd.set_option('display.max_rows', 7)
     #### Bind rows ####
@@ -110,32 +111,31 @@ def join_results_to_lines(tbl, lines, out_lines, all_records=False):
     # note to self: need to delete the extra fields length_m and SITE_CODE_1 from the outputs 
     # also: could use fieldmapping to set the field types more appropriately here 
 
-    # Copy all lines feature
-    arcpy.management.CopyFeatures(lines, out_lines)
-    print("Copied " + lines + " for join")
-
     if all_records:
+        print("Converting all_records and lines to pd dataframes...")
+        # convert lines to a sdf 
+        sdf = pd.DataFrame.spatial.from_featureclass(lines)
 
-        # Export table to the same gdb
-        date = datetime.date.today().strftime("%Y%m%d")
-        out_path = "LinearExtent.gdb"
-        new_table = f"all_records_{date}"
-        arcpy.conversion.TableToTable(tbl, out_path, new_table)
-        new_table = f"LinearExtent.gdb\\all_records_{date}"
+        # load tbl to dataframe
+        tbl_df = pd.read_csv(tbl)
+        print(f"{len(tbl_df)} records in table")
 
-        # Validate join
-        arcpy.management.ValidateJoin(out_lines, 'SITE_CODE', new_table, 'SITE_CODE')
-        print(arcpy.GetMessages())
+        # join one-to-many
+        print("Merging...")
+        joined = pd.merge(sdf, tbl_df, how="outer", on="SITE_CODE")
+        print(f"Resulting table has {len(joined)} records")
+        print(joined.head())
 
-        # Join--> convert to in memory join and then export 
-        arcpy.management.AddJoin(out_lines, "SITE_CODE", new_table, "SITE_CODE", "KEEP_ALL", "", "", "JOIN_ONE_TO_MANY")
-        joined_lines = f"{out_lines}_export"
-        arcpy.conversion.ExportFeatures(out_lines, joined_lines) 
-
-        print('Most all records data has been joined to lines')
-        print(f'Results available at {joined_lines}')
+        # write to feature class
+        print("Writing to feature class...")
+        joined.spatial.to_featureclass(location=out_lines, overwrite=True)
+        print(f"Feature class created: {out_lines}") 
 
     else:
+        # Copy all lines feature
+        arcpy.management.CopyFeatures(lines, out_lines)
+        print("Copied " + lines + " for join")
+
         # Validate join
         arcpy.management.ValidateJoin(out_lines, 'SITE_CODE', tbl, 'SITE_CODE')
         print(arcpy.GetMessages())
@@ -151,7 +151,7 @@ def join_results_to_lines(tbl, lines, out_lines, all_records=False):
         print('Most recent kelp presence data has been joined to lines')
         print('Results available at ' + out_lines)
 
-#### Run ####
+# create most recent  ------------------------------------------------------------------
 synth_dfs = csv_to_pd(tbls)
 
 combine_results(synth_dfs)
@@ -174,10 +174,8 @@ most_rec_metadata.save()
 
 print(f"Applied metadata has been successfully applied to {most_rec_fc}.")
 
-print(f"Applied metadata has been successfully applied to {most_rec_fc}.")
-
-# this doesnt work right now, don't know why
-#join_results_to_lines(tbl='all_records.csv', 
-#                    lines=lines, 
-#                     out_lines="LinearExtent.gdb//linear_extent_all_records", 
-#                      all_records=True)
+# create the all records dataset ----------------------------------------------------
+join_results_to_lines(tbl='all_records.csv', 
+                    lines=lines, 
+                     out_lines=os.path.join(os.getcwd(), "LinearExtent.gdb","linear_extent_all_records"), 
+                      all_records=True)
