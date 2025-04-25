@@ -1,6 +1,8 @@
 # Summarize Samish Indian Nation's kelp polygons from assorted years of aerial surveys to linear extent
 
 # files from K:\kelp\VScanopy\data\SJI\Samish_spatial_data_2021_delivery
+############# 2004/2006 logic isn't working. need to pre-process 
+# There are some other issues with this Dataset in my QAQC notes that need to be addressed with Danielle and/or someone from Samish
 
 # set environment ---------------------------------------------------------
 import arcpy
@@ -152,7 +154,7 @@ print(results.head())
 
 # if there are sites with 2004 and 2006, we need to drop the 2004 results. 
 # The 2004 & 2006 footprints overlap, but the kelp fc is a composite of both of these. Assume the more recent year was used but who knows, actually.
-
+# This doesn't work
 site_codes_with_2006 = results[results['year'] == 2006]['SITE_CODE'].unique()
 results = results[~((results['year'] == 2004) & (results['SITE_CODE'].isin(site_codes_with_2006)))]
 
