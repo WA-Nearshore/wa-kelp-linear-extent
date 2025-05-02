@@ -9,6 +9,9 @@ import os
 import datetime
 from arcgis.features import GeoAccessor, GeoSeriesAccessor
 
+# need to add source URL field to all_records table
+# should modify this to also export the all_records table to the gdb
+
 # set environment -----------------------------------------------------------------------
 
 arcpy.env.overwriteOutput = True
@@ -60,10 +63,25 @@ def combine_results(synth_dfs):
     # if presence == 0 and abundance > 0, make abundance 0
     # if presence == 1 and abundance == 0, make abundance 1
     all_synth['abundance'] = all_synth.apply(
-    lambda row: 0 if row['presence'] == 0 and row['abundance'] > 0 else
-                1 if row['presence'] == 1 and row['abundance'] == 0 else
-                row['abundance'], axis=1)
+    lambda row: 0 if row['presence'] == 0 and (pd.isna(row['abundance']) or row['abundance'] > 0) else
+                1 if row['presence'] == 1 and (row['abundance'] == 0) else
+                row['abundance'], axis=1
+    )
     
+    # drop extra column
+    all_synth = all_synth.drop(['Unnamed: 0'], axis = 1)
+
+    # drop rows where source is null 
+    all_synth = all_synth.dropna(subset=["source"], axis=0)
+
+    # rename abundance to proportional presence
+    all_synth.rename(columns={'abundance':'proportional_presence'}, inplace=True)
+
+    # add the source_url field
+    print("Adding the source_urls in from the file source_urls.csv")
+    source_url = pd.read_csv("source_urls.csv")
+    all_synth = all_synth.merge(source_url[['source','source_url']], on='source', how='left')
+
     # save this as the 'all_records" table. 
     print("Compiled all results and written to csv: all_records.csv" )
     all_synth.to_csv("all_records.csv")
@@ -82,22 +100,19 @@ def combine_results(synth_dfs):
         print("The following sites have more than 1 record for the most recent year:")
         dupes = most_recent[most_recent.duplicated('SITE_CODE', keep=False) == True].sort_values('SITE_CODE')
         print(dupes)
-        print("Selecting source with maximum area")
+        print("Selecting source with maximum proportional presence...")
     else:
         print("All sites have unique records for most recent year")
     
     # count number of records for most recent year
     most_recent.loc[:, 'n_records_most_rec'] = most_recent.groupby('SITE_CODE')['SITE_CODE'].transform('count')
 
-    # for years with multiple records, select row with max kelp area 
-    most_recent['sum_Area_HECTARES'].fillna(-9999, inplace=True) # replace NULL values with -9999 so the below code works
-    most_rec_max = most_recent[most_recent['sum_Area_HECTARES'] == most_recent.groupby('SITE_CODE')['sum_Area_HECTARES'].transform('max')]
+    # for years with multiple records, select row with max proportional_presence
+    most_recent['proportional_presence'].fillna(-9999, inplace=True) # replace NULL values with -9999 so the below code works
+    most_rec_max = most_recent[most_recent['proportional_presence'] == most_recent.groupby('SITE_CODE')['proportional_presence'].transform('max')]
 
     # Set index to site_code 
     most_rec_max =  most_rec_max.set_index('SITE_CODE')
-
-    # Drop this random garbage column
-    most_rec_max =  most_rec_max.drop(['Unnamed: 0'], axis = 1)
 
     print("Preview of most recent year table:")
     print(most_rec_max.head(5))
@@ -131,6 +146,14 @@ def join_results_to_lines(tbl, lines, out_lines, all_records=False):
         joined.spatial.to_featureclass(location=out_lines, overwrite=True)
         print(f"Feature class created: {out_lines}") 
 
+        # Write csv to gdb table
+        print("Writing to table...")
+
+        # tidy output feature class
+        print("Removing unnecessary fields...")
+        arcpy.management.DeleteField(out_lines, ["length_m", "unnamed_01", "unnamed_0", "sum_area_hectares"])
+        arcpy.management.AlterField(out_lines, "site_code", "SITE_CODE", "SITE_CODE")
+
     else:
         # Copy all lines feature
         arcpy.management.CopyFeatures(lines, out_lines)
@@ -151,6 +174,12 @@ def join_results_to_lines(tbl, lines, out_lines, all_records=False):
         print('Most recent kelp presence data has been joined to lines')
         print('Results available at ' + out_lines)
 
+        # tidy output feature class
+        print("Removing unnecessary fields...")
+        arcpy.management.DeleteField(out_lines, ["length_m", "SITE_CODE_1", "sum_Area_HECTARES"])
+        arcpy.management.AlterField(out_lines, field="OBJECTID", new_field_alias="OBJECTID")
+
+
 # create most recent  ------------------------------------------------------------------
 synth_dfs = csv_to_pd(tbls)
 
@@ -165,6 +194,8 @@ join_results_to_lines(tbl='all_records.csv',
                     lines=lines, 
                      out_lines=os.path.join(os.getcwd(), "LinearExtent.gdb","linear_extent_all_records"), 
                       all_records=True)
+
+# add source_URL field 
 
 # Append metadata ----------------------------------------------------------------------
 def apply_metadata(feature_class, metadata_file_path):
