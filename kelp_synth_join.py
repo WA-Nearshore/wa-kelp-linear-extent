@@ -75,7 +75,7 @@ def combine_results(synth_dfs):
     all_synth = all_synth.dropna(subset=["source"], axis=0)
 
     # rename abundance to proportional presence
-    all_synth.rename(columns={'abundance':'proportional_presence'}, inplace=True)
+    all_synth.rename(columns={'abundance':'coverage_category'}, inplace=True)
 
     # add the source_url field
     print("Adding the source_urls in from the file source_urls.csv")
@@ -100,7 +100,7 @@ def combine_results(synth_dfs):
         print("The following sites have more than 1 record for the most recent year:")
         dupes = most_recent[most_recent.duplicated('SITE_CODE', keep=False) == True].sort_values('SITE_CODE')
         print(dupes)
-        print("Selecting source with maximum proportional presence...")
+        print("Selecting source with maximum coverage...")
     else:
         print("All sites have unique records for most recent year")
     
@@ -108,8 +108,8 @@ def combine_results(synth_dfs):
     most_recent.loc[:, 'n_records_most_rec'] = most_recent.groupby('SITE_CODE')['SITE_CODE'].transform('count')
 
     # for years with multiple records, select row with max proportional_presence
-    most_recent['proportional_presence'].fillna(-9999, inplace=True) # replace NULL values with -9999 so the below code works
-    most_rec_max = most_recent[most_recent['proportional_presence'] == most_recent.groupby('SITE_CODE')['proportional_presence'].transform('max')]
+    most_recent['coverage_category'].fillna(-9999, inplace=True) # replace NULL values with -9999 so the below code works
+    most_rec_max = most_recent[most_recent['coverage_category'] == most_recent.groupby('SITE_CODE')['coverage_category'].transform('max')]
 
     # Set index to site_code 
     most_rec_max =  most_rec_max.set_index('SITE_CODE')
