@@ -1,8 +1,9 @@
 # Summarize Samish Indian Nation's kelp polygons from assorted years of aerial surveys to linear extent
 
 # files from K:\kelp\VScanopy\data\SJI\Samish_spatial_data_2021_delivery
-############# 2004/2006 logic isn't working. need to pre-process 
-# There are some other issues with this Dataset in my QAQC notes that need to be addressed with Danielle and/or someone from Samish
+# an updated 2022 dataset from K:\kelp\VScanopy\data\SJI\sji_2022_mapping_project_materials
+# Created a modified survey boundary for 2016 onward based on conversations with Sophia and Todd
+# 2004 and 2006 overlap, based on the Indicator, using 
 
 # set environment ---------------------------------------------------------
 import arcpy
@@ -37,7 +38,7 @@ for file in os.listdir(kelp_data_path):
         kelp_shps.append(file)
 print(kelp_shps)
 
-# For now, drop the skagit data since I don't have the footprint --> could handle as presence only
+# Remove skagit, handled as presence only below
 kelp_shps.remove('SkagitCO_2019_Kelp.shp')
 
 # append parent file path
@@ -67,15 +68,22 @@ kelp_fcs.sort(key=lambda x: int(x.split('_')[1]))
 print("Sorted list:")
 print(kelp_fcs)
 
-# each year has its own boundary
-aoi2004 = f"{kelp_data_path}\\SanJuan_Footprint_2004\\2004_2006_kelp_image_index.shp"
-aoi2006 = f"{kelp_data_path}\\SanJuan_Footprint_2006\\2004_2006_kelp_image_index.shp"
-aoi2016 = f"{kelp_data_path}\\Boundary_2016\Boundary_2016.shp"
-aoi2019 = f"{kelp_data_path}\\Boundary_2019\Boundary_2019.shp"
+# add 2022 to list 
+kelp_fcs.append(r"kelp_data_sources\sji_2022_mapping_project_materials\bed_delineation\2023_11_21_delivery_from_sophia\Data for Helen\Data for Helen\Kelp_Digitization_2006_to_2022.gdb\Samish_Digitized_Kelp_2022")
+
+# 2004, 2006, then 2016 onward have different boundaries
+aoi2004 = f"{kelp_data_path}\\SamishBoundariesGEM.gdb\\image_index_2004_NoOverlaps"
+aoi2006 = f"{kelp_data_path}\\SamishBoundariesGEM.gdb\\image_index_2006_NoOverlaps"
+aoi2016 = f"{kelp_data_path}\\SamishBoundariesGEM.gdb\\boundary_2016onward"
 
 # create paired list of survey boundaries and kelp data
 # the 2004 and 2006 results are merged into 1 kelp fc 
-fc_list = [(kelp_fcs[0], aoi2004), (kelp_fcs[1], aoi2006), (kelp_fcs[2], aoi2016), (kelp_fcs[3], aoi2019)]
+fc_list = [(kelp_fcs[0], aoi2004), 
+           (kelp_fcs[1], aoi2006), 
+           (kelp_fcs[2], aoi2016), 
+           (kelp_fcs[3], aoi2016),
+           (kelp_fcs[4], aoi2016)]
+
 
 # calculate presence -------------------------------------------------------
 print("Calculating presence...")
@@ -152,11 +160,6 @@ results = pd.concat([results, ska_results])
 print("Results table:")
 print(results.head())
 
-# if there are sites with 2004 and 2006, we need to drop the 2004 results. 
-# The 2004 & 2006 footprints overlap, but the kelp fc is a composite of both of these. Assume the more recent year was used but who knows, actually.
-# This doesn't work
-site_codes_with_2006 = results[results['year'] == 2006]['SITE_CODE'].unique()
-results = results[~((results['year'] == 2004) & (results['SITE_CODE'].isin(site_codes_with_2006)))]
 
 results.to_csv("kelp_data_synth_results\\sji_synth.csv")
 print("Saved as csv here: kelp_data_synth_results\\sji_synth.csv")
