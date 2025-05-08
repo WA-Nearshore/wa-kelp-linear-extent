@@ -6,6 +6,8 @@
 # 20240730 https://fortress.wa.gov/dnr/adminsa/gisdata/datadownload/state_DNR_ShoreZone.zip
 # minor manual preprocessing -> see note about years below
 
+# some years still returning as zero this is probably because of the diff methods between presence/abundance
+
 # set env -----------------------------------------------
 import arcpy
 import os
@@ -170,6 +172,9 @@ result = result[['SITE_CODE', 'abundance', 'presence', 'year', 'source']]
 print("Final results table:")
 print(result.info())
 print(result.head())
+
+# Remove any year == 0 (aka the shorezone shoreline, even buffered, is not reasonably within a container)
+result = result.dropna(subset=["year"], axis=0)
 
 # Write the result to CSV
 result.to_csv(r"kelp_data_synth_results\shorezone_synth.csv")
