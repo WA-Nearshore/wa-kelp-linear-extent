@@ -9,9 +9,6 @@ import os
 import datetime
 from arcgis.features import GeoAccessor, GeoSeriesAccessor
 
-# need to add source URL field to all_records table
-# should modify this to also export the all_records table to the gdb
-
 # set environment -----------------------------------------------------------------------
 
 arcpy.env.overwriteOutput = True
@@ -71,10 +68,13 @@ def combine_results(synth_dfs):
     # drop extra column
     all_synth = all_synth.drop(['Unnamed: 0'], axis = 1)
 
+    # drop sum area hectares
+    all_synth = all_synth.drop(['sum_Area_HECTARES'], axis = 1)
+
     # drop rows where source is null 
     all_synth = all_synth.dropna(subset=["source"], axis=0)
 
-    # rename abundance to proportional presence
+    # rename abundance 
     all_synth.rename(columns={'abundance':'coverage_category'}, inplace=True)
 
     # add the source_url field
@@ -183,6 +183,8 @@ def join_results_to_lines(tbl, lines, out_lines, all_records=False):
 # create most recent  ------------------------------------------------------------------
 synth_dfs = csv_to_pd(tbls)
 
+
+
 combine_results(synth_dfs)
 
 most_rec_fc = "LinearExtent.gdb//linear_extent_most_recent"
@@ -194,8 +196,6 @@ join_results_to_lines(tbl='all_records.csv',
                     lines=lines, 
                      out_lines=os.path.join(os.getcwd(), "LinearExtent.gdb","linear_extent_all_records"), 
                       all_records=True)
-
-# add source_URL field 
 
 # Append metadata ----------------------------------------------------------------------
 def apply_metadata(feature_class, metadata_file_path):
