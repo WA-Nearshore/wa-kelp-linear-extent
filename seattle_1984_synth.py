@@ -15,19 +15,11 @@ fns.reset_ws()
 # prep data ------------------------------------------------------------
 
 # data from K:\kelp\projects\2024_westseattle_magnolia_1984_imagery\WestSeattleMagnolia1984_final.gdb
-source_path= r"kelp_data_sources\WestSeattleMagnolia1984_final.gdb\WestSeattleMagnolia1984_final.gdb\bull_kelp_1984_edits_reviewed"
-orig = os.path.join(os.getcwd(), source_path)
-
-
-print(f"Running analsysis on {orig}...")
-# abundance containers
-abundance_containers = "LinearExtent.gdb\\abundance_containers"
-
-print("Copying features to scratch.gdb...")
-# copy datasets to scratch
+# due to some file path shenanigans, I have manually exported the feature class bull_kelp_194_edits_reviewed to scratch
 fc = "scratch.gdb\\seattle1984"
 
-arcpy.management.CopyFeatures(orig, fc)
+# abundance containers
+abundance_containers = "LinearExtent.gdb\\abundance_containers"
 
 # convert to df 
 print("Converting to dataframe...")
@@ -43,7 +35,7 @@ df = df[df['surveyed'] == 1]
 
 print("Calculating presence...")
 
-pres = df.group_by('SITE_CODE', as_index=False).agg(
+pres = df.groupby('SITE_CODE', as_index=False).agg(
     {'kelp_presence':'max'}
 ).rename(columns={'kelp_presence':'presence'})
 pres['year']='1984'
