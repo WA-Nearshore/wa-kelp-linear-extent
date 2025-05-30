@@ -8,7 +8,7 @@ import numpy as np
 import arcpy
 from arcgis import GeoAccessor, GeoSeriesAccessor
 
-# load data -----------------------------------------
+# load data --------------------------------------------
 
 kelp_obs = "kelp_data_sources\\bull_kelp_sps_1878_2017.gdb\\kelp_all_obs"
 kelp_df = pd.DataFrame.spatial.from_table(kelp_obs)
@@ -19,7 +19,7 @@ lines_df = pd.DataFrame.spatial.from_featureclass(lines_fc)
 print("")
 print(kelp_df.head())
 
-# QAQC -----------------------------------------------
+# QAQC --------------------------------------------------
 
 ## compare site_codes to ensure no mismatches
 sps_codes = kelp_df['SITE_CODE'].unique()
@@ -27,7 +27,7 @@ line_codes = kelp_df['SITE_CODE'].unique()
 diff_codes = list(set(sps_codes).difference(line_codes))
 print(f"Non-matching codes: {diff_codes}")
 
-# reformat ------------------------------------------
+# reformat ---------------------------------------------
 
 kelp_df["presence"] = kelp_df["kelp"].astype(int)
 kelp_df["year"] = kelp_df["surveydate"].astype(int)
@@ -37,5 +37,14 @@ out_table = kelp_df[['SITE_CODE', 'source', 'year', 'presence']]
 print("Reformatted table:")
 print(out_table.head())
 
-# write out -----------------------------------------
+# drop 2017 records, since we are using those directly --
+# (they are the same as WADNR_sps_boat...)
+
+print('Years of data available: ')
+print(out_table["year"].unique())
+print('Removing 2017...')
+out_table = out_table[out_table["year"] != 2017]
+print(out_table["year"].unique())
+
+# write out ---------------------------------------------
 out_table.to_csv('kelp_data_synth_results\\sps_historical.csv')
