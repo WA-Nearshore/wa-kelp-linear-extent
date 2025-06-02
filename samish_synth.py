@@ -3,7 +3,11 @@
 # files from K:\kelp\VScanopy\data\SJI\Samish_spatial_data_2021_delivery
 # an updated 2022 dataset from K:\kelp\VScanopy\data\SJI\sji_2022_mapping_project_materials
 # Created a modified survey boundary for 2016 onward based on conversations with Sophia and Todd
-# 2004 and 2006 overlap, based on the Indicator, using 
+# 2004 and 2006 overlap, using modified ortho tiles dissolved along the centerline of overlap as that survey area
+# Sophia sent 2023 data via email on 2025-05-30
+# 2022 data was exported to a shapefile from sji_2022_mapping_project_materials\bed_delineation\2023_11_21_delivery_from_sophia\Data for Helen\Data for Helen\Kelp_Digitization_2006_to_2022.gdb\Samish_Digitized_Kelp_2022"
+# Into the 2021 deliverable folder, renamed to match the other .shps
+
 
 # set environment ---------------------------------------------------------
 import arcpy
@@ -38,8 +42,9 @@ for file in os.listdir(kelp_data_path):
         kelp_shps.append(file)
 print(kelp_shps)
 
-# Remove skagit, handled as presence only below
+# Remove skagit for now, possibly handle as presence only if mysteries are solved
 kelp_shps.remove('SkagitCO_2019_Kelp.shp')
+kelp_shps.remove('Samish_Digitized_Kelp_Skagit_CO_SepOct2017.shp')
 
 # append parent file path
 kelp_shps = [f"{kelp_data_path}\\{shp}" for shp in kelp_shps]
@@ -68,9 +73,6 @@ kelp_fcs.sort(key=lambda x: int(x.split('_')[1]))
 print("Sorted list:")
 print(kelp_fcs)
 
-# add 2022 to list 
-kelp_fcs.append(r"kelp_data_sources\sji_2022_mapping_project_materials\bed_delineation\2023_11_21_delivery_from_sophia\Data for Helen\Data for Helen\Kelp_Digitization_2006_to_2022.gdb\Samish_Digitized_Kelp_2022")
-
 # 2004, 2006, then 2016 onward have different boundaries
 aoi2004 = f"{kelp_data_path}\\SamishBoundariesGEM.gdb\\image_index_2004_NoOverlaps"
 aoi2006 = f"{kelp_data_path}\\SamishBoundariesGEM.gdb\\image_index_2006_NoOverlaps"
@@ -78,12 +80,15 @@ aoi2016 = f"{kelp_data_path}\\SamishBoundariesGEM.gdb\\boundary_2016onward"
 
 # create paired list of survey boundaries and kelp data
 # the 2004 and 2006 results are merged into 1 kelp fc 
-fc_list = [(kelp_fcs[0], aoi2004), 
-           (kelp_fcs[1], aoi2006), 
-           (kelp_fcs[2], aoi2016), 
-           (kelp_fcs[3], aoi2016),
-           (kelp_fcs[4], aoi2016)]
+fc_list = [
+    (kelp_fcs[0], aoi2004),
+    (kelp_fcs[1], aoi2006)
+] + [
+    (kelp_fc, aoi2016) for kelp_fc in kelp_fcs[2:]
+]
 
+print("Paired list:")
+print(fc_list)
 
 # calculate presence -------------------------------------------------------
 print("Calculating presence...")
@@ -118,44 +123,51 @@ abundance = abundance.drop(columns=['fc_name'])
 print("Reformatted abundance table:")
 print(abundance.head())
 
-# process skagitco 2019 data ------------------------------------------------
-print("Processing Skagit 2019 data as presence only...")
+# process skagitco data ------------------------------------------------
+# this is currently being excluded because year and survey boundary are actually unknown
+# print("Processing Skagit data as presence only...")
 # no survey footprint exists so we treat as presence only
-skagit2019shp = f"{kelp_data_path}\\SkagitCO_2019_Kelp.shp"
 
-# convert to fc and add to a 1-element list
-arcpy.conversion.FeatureClassToFeatureClass(skagit2019shp, "scratch.gdb", "ska2019")
-skagit2019fc = ["scratch.gdb\\ska2019"]
+# def presence_only_calc(input_shapefile, output_name, kelp_data_path, containers, abundance_containers, scratch_gdb="scratch.gdb")
 
-# get presence
-fns.sum_kelp_within(skagit2019fc, containers)
-sumska2019 = ["scratch.gdb\\sumwithinska2019"]
-ska_presence_list = fns.df_from_fc(sumska2019, "Samish_AerialSurveys")
+ #   # convert shapefile to feature class
+ #   fc_path = f"{scratch_gdb}\\{output_name}"
+ #   arcpy.conversion.FeatureClassToFeatureClass(input_shapefile, scratch_gdb, output_name)
+ #   kelp_fc = [fc_path]
 
-# extract the dataframe from the list format
-ska_presence = ska_presence_list[0]
-print("Skagit2019 presence data:")
-print(ska_presence.head())
+    # get presence
+ #   fns.sum_kelp_within(kelp_fc, containers)
+ #   sum_fc = f"{scratch_gdb}\\sumwithin{output_name}"
+ #   presence_list = fns.df_from_fc([sum_fc], "Samish_AerialSurveys")
+ #   presence_df = presence_list[0]
+ #   print(f"{output_name} presence data:")
+ #   print(presence_df.head())
 
-# drop rows where presence = 0 
-ska_presence = ska_presence[ska_presence['presence'] != 0]
+    # Filter out zero-presence rows
+ #   presence_df = presence_df[presence_df['presence'] != 0]
 
-# get abundance
-ska_abundance = fns.calc_abundance(abundance_containers, skagit2019fc)
+    # Get abundance
+ #   abundance_df = fns.calc_abundance(abundance_containers, kelp_fc)
+ #   abundance_df['year'] = abundance_df['fc_name'].str[-4:]
+ #   abundance_df = abundance_df.drop(columns=['fc_name'])
+ #   print(f"Reformatted {output_name} abundance table:")
+ #   print(abundance_df.head())
 
-# add the year col
-ska_abundance['year'] = ska_abundance['fc_name'].str[-4:]
-ska_abundance = ska_abundance.drop(columns=['fc_name'])
-print("Reformatted skagit abundance table:")
-print(ska_abundance.head())
+    # Merge and return
+ #  merged_df = pd.merge(presence_df, abundance_df, how="left", on=["SITE_CODE", "year"])
+ #   return merged_df
 
-ska_results = pd.merge(ska_presence, ska_abundance, how="left", on=["SITE_CODE", "year"])
+#skagit2019shp = f"{kelp_data_path}\\SkagitCO_2019_Kelp.shp"
+#ska_results_2019 = presence_only_calc(skagit2019shp, "ska2019", kelp_data_path, containers, abundance_containers)
+
+#skagit2017shp = f"{kelp_data_path}\\Samish_Digitized_Kelp_Skagit_CO_SepOct2017.shp"
+#ska_results_2017 = presence_only_calc(skagit2017shp, "ska2019", kelp_data_path, containers, abundance_containers)
 
 # compile and export --------------------------------------------------
 results = pd.merge(presence, abundance, how="left", on=["SITE_CODE", "year"])
 
 # add skagit results
-results = pd.concat([results, ska_results])
+#results = pd.concat([results, ska_results_2017, ska_results_2019])
 
 print("Results table:")
 print(results.head())
