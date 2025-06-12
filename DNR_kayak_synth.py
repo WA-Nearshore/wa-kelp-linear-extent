@@ -4,6 +4,7 @@
 
 # This dataset is a little funky in that there are small 'absence' polygons at sites where there was an annual survey to confirm there was no kelp 
 # Different sites surveyed each year --> if there is no absence polygon, it wasn't surveyed
+# Note --> check to make sure that the annual survey boundary features T2013-T2024 were successfully deleted from the kayak .gdb before running 
 
 # set environment -------------------------------------------------------
 import arcpy
@@ -124,7 +125,7 @@ print(f"Saved as csv here: {out_results}")
 # clear scratch
 fns.clear_scratch()
 
-# clear the split survey boundaries --> this isn't working for some reason
+# clear the split survey boundaries 
 for fc in site_bnd_split:
     print(f"Deleting {fc}...")
     arcpy.management.DeleteFeatures(fc)
