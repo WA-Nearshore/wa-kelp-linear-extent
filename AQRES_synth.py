@@ -1,8 +1,14 @@
 # Summarize AQRES data to kelp linear extent
 
 # AQRES Data
-# Latest download date 2025-02-20
+# Latest download date 2025-06-11
 # Link: https://fortress.wa.gov/dnr/adminsa/gisdata/datadownload/kelp_canopy_aquatic_reserves.zip
+
+# Currently working off the version from K:\kelp\kelp_aquatic_reserves\deliverables\dnr_kelp_processing_2022_2024\kelp_canopy_aquatic_reserves_adjusted.
+# Manually renamed the two fcs kelp10_23ar... so those summary fcs dont get included in this script
+
+# Gray note to self - AQRES 2010 only surveyed a very small area. 
+# From Lisa: The three map indexes around Smith Island were surveyed completely in 2010 (1.1, 1.2, & 1.3). Mapping for all other areas started in 2011. 
 
 # set up environment --------------------------------------
 
@@ -32,7 +38,7 @@ containers = "LinearExtent.gdb\\kelp_containers_v2"
 print(f"Using {containers} as container features")
 
 # set workspace to gdb with kelp data sources
-kelp_data_path = r"kelp_data_sources\kelp_canopy_aquatic_reserves\kelp_canopy_aquatic_reserves.gdb"
+kelp_data_path = r"kelp_data_sources\kelp_canopy_aquatic_reserves_adjusted.gdb"
 arcpy.env.workspace = kelp_data_path
 
 # list AQRES feature classes

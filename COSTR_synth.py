@@ -1,7 +1,9 @@
 # Summarize COSTR kelp data to linear extent
 
-# COSTR data download date: 2024-06-17
+# COSTR data download date: 2025-06-11
 # link: https://fortress.wa.gov/dnr/adminsa/gisdata/datadownload/kelp_canopy_strait_coast.zip
+
+# Currently working off K:\kelp\canopy_strait_coast\deliverables\2022_2024_dnr_processing\kelp_canopy_coast_strait.gdb
 
 # set environment -----------------------------------------------------
 import arcpy
@@ -29,7 +31,7 @@ containers = "LinearExtent.gdb\\kelp_containers_v2"
 print(f"Using {containers} as container features")
 
 # set workspace to gdb with kelp data sources
-kelp_data_path = "kelp_data_sources\\kelp_canopy_strait_coast\\kelp_canopy_coast_strait.gdb"
+kelp_data_path = "kelp_data_sources\\kelp_canopy_coast_strait.gdb"
 arcpy.env.workspace = kelp_data_path
 
 # load feature classes into list
