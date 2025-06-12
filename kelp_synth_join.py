@@ -86,8 +86,13 @@ def combine_results(synth_dfs):
     print("Compiled all results and written to csv: all_records.csv" )
     all_synth.to_csv("all_records.csv")
     print(f"Total records: {len(all_synth)}")
-
+    
     #### Select most recent year for each site_code ####
+    # Identify non-numeric rows
+    non_numeric_years = all_synth[~all_synth['year'].apply(lambda x: str(x).isdigit())]
+
+    # Print them
+    print(non_numeric_years)
 
     # Find most recent year for each SITE_CODE
     most_recent_year = all_synth.groupby('SITE_CODE')['year'].transform('max')
@@ -175,15 +180,14 @@ def join_results_to_lines(tbl, lines, out_lines, all_records=False):
         print('Results available at ' + out_lines)
 
         # tidy output feature class
-        print("Removing unnecessary fields...")
+        print("Tidying outputs...")
         arcpy.management.DeleteField(out_lines, ["length_m", "SITE_CODE_1", "sum_Area_HECTARES"])
         arcpy.management.AlterField(out_lines, field="OBJECTID", new_field_alias="OBJECTID")
 
+        # if source is NULL, delete records...
 
 # create most recent  ------------------------------------------------------------------
 synth_dfs = csv_to_pd(tbls)
-
-
 
 combine_results(synth_dfs)
 
