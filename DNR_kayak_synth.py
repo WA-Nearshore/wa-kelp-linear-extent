@@ -128,4 +128,4 @@ fns.clear_scratch()
 # clear the split survey boundaries 
 for fc in site_bnd_split:
     print(f"Deleting {fc}...")
-    arcpy.management.DeleteFeatures(fc)
+    arcpy.management.Delete(fc)
