@@ -1,4 +1,5 @@
 # 1984 data analysis
+# data from K:\kelp\projects\2024_westseattle_magnolia_1984_imagery\WestSeattleMagnolia1984_final.gdb
 
 # set env -----------------------------------------------------------
 import arcpy
@@ -14,9 +15,7 @@ fns.reset_ws()
 
 # prep data ------------------------------------------------------------
 
-# data from K:\kelp\projects\2024_westseattle_magnolia_1984_imagery\WestSeattleMagnolia1984_final.gdb
-# due to some file path shenanigans, I have manually exported the feature class bull_kelp_194_edits_reviewed to scratch
-fc = "scratch.gdb\\seattle1984"
+fc = "kelp_data_sources\\WestSeattleMagnolia1984\\WestSeattleMagnolia1984_final.gdb\\bull_kelp_1984_edits_reviewed"
 
 # abundance containers
 abundance_containers = "LinearExtent.gdb\\abundance_containers"
@@ -25,10 +24,10 @@ abundance_containers = "LinearExtent.gdb\\abundance_containers"
 print("Converting to dataframe...")
 df = pd.DataFrame.spatial.from_featureclass(fc)
 
-# Use SITE_NO field to derive appropriate SITE_CODE
+# use SITE_NO field to derive appropriate SITE_CODE
 df['SITE_CODE'] = 'cps' + df['SITE_NO'].astype(str).str.zfill(4)
 
-# Filter down to surveyed segments 
+# filter down to surveyed segments 
 df = df[df['surveyed'] == 1]
 
 # calculate presence --------------------------------------------
