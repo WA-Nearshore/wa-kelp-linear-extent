@@ -1,6 +1,8 @@
 # WA Floating Kelp Linear Extent Project #
 #### Washington Department of Natural Resources #### 
 #### Nearshore Habitat Program ####
+[![DOI](https://zenodo.org/badge/903042774.svg)](https://doi.org/10.5281/zenodo.15742420)
+
 This is the repository for all the analysis scripts that compile and synthesize a multitude of floating kelp spatial datasets into a cohesive synthesis of WA-statewide floating kelp linear extent.
 Scripts are authored by Gray McKenna.
 
