@@ -4,9 +4,8 @@
 # Treating data as presence only, because survey areas shift between years and we do not have each year's site boundaries
 # and frequently bed extents go beyond the site boundaries anyways
 
-# This dataset was MANUALLY reprojected to State Plane South -> result saved to scratch .gdb prior to running script
 # Just noting that there are multiple beds per year in this dataset which is not currently handled with this logic
-# I believe the years are summed together in sumwithin
+# the years are summed together in sumwithin --> if ANY bed from a year is in a container, it is present
 
 # set environment -------------------------------------------------
 import arcpy

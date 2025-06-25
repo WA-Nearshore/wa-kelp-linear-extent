@@ -5,6 +5,7 @@ import arcpy.management
 import pandas as pd
 from pathlib import Path
 import os
+from arcgis import GeoSeriesAccessor, GeoAccessor
 
 # set environment -----------------------------------------------------------------------
 
@@ -94,23 +95,25 @@ def combine_results(synth_dfs):
     print(f"Total records: {len(all_synth)}")
 
     #### Select most recent year for each site_code ####
-    # Identify non-numeric rows
-    non_numeric_years = all_synth[~all_synth["year"].apply(lambda x: str(x).isdigit())]
+    # identify non-numeric or NA rows
+    non_numeric_years = all_synth[
+        all_synth["year"].isna() | ~all_synth["year"].astype(str).str.isdigit()
+    ]
 
-    # Print them
+    # print them
     print(non_numeric_years)
 
-    # Find most recent year for each SITE_CODE
+    # find most recent year for each SITE_CODE
     most_recent_year = all_synth.groupby("SITE_CODE")["year"].transform("max")
 
-    # Grab those rows
+    # grab those rows
     most_recent = all_synth[all_synth["year"] == most_recent_year]
 
-    # Check if site_code is unique
-    if most_recent["SITE_CODE"].is_unique == False:
+    # check if site_code is unique
+    if not most_recent["SITE_CODE"].is_unique:
         print("The following sites have more than 1 record for the most recent year:")
         dupes = most_recent[
-            most_recent.duplicated("SITE_CODE", keep=False) == True
+            most_recent.duplicated("SITE_CODE", keep=False)
         ].sort_values("SITE_CODE")
         print(dupes)
         print("Selecting source with maximum coverage...")
@@ -205,8 +208,6 @@ def join_results_to_lines(tbl, lines, out_lines, all_records=False):
         arcpy.management.AlterField(
             out_lines, field="OBJECTID", new_field_alias="OBJECTID"
         )
-
-        # if source is NULL, delete records...
 
 
 # create most recent  ------------------------------------------------------------------
