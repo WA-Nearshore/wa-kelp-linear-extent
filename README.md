@@ -3,7 +3,7 @@
 #### Nearshore Habitat Program ####
 [![DOI](https://zenodo.org/badge/903042774.svg)](https://doi.org/10.5281/zenodo.15742420)
 
-This is the repository for all the analysis scripts that compile and synthesize a multitude of floating kelp spatial datasets into a cohesive synthesis of WA-statewide floating kelp linear extent.
+This is the repository for all the analysis scripts that compile and synthesize a multitude of floating kelp spatial datasets into a cohesive synthesis of WA-statewide floating kelp linear extent. The 2026 code and data update is currently underway. 
 Scripts are authored by Gray McKenna.
 
 More information about this project, including data access and User Guide, is available at https://experience.arcgis.com/experience/e03ea8b2a6574e4094230aff5e862626/ or at https://www.dnr.wa.gov/programs-and-services/aquatics/aquatic-science/nearshore-habitat-program
