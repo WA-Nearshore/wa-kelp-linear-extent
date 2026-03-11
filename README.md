@@ -11,11 +11,11 @@ More information about this project, including data access and User Guide, is av
 Contact nearshore@dnr.wa.gov with questions about usage of these scripts or this dataset.
 
 Project Structure: 
-&nbsp;kelp_linear-extent/
-&nbsp;├── linearize/ _this folder contains analysis scripts for individual data sources_
-&nbsp;├── compile_linear_data.py _this script compiles outputs from the linearize scripts_
-&nbsp;├── fns.py _this script contains functions and utilities used in linearize scripts_
-&nbsp;├── pipeline.py _this script runs the entire workflow, including all linearize scripts and the compilation script_
+&nbsp;kelp_linear-extent/  
+&nbsp;├── linearize/ _this folder contains analysis scripts for individual data sources_  
+&nbsp;├── compile_linear_data.py _this script compiles outputs from the linearize scripts_  
+&nbsp;├── fns.py _this script contains functions and utilities used in linearize scripts_  
+&nbsp;├── pipeline.py _this script runs the entire workflow, including all linearize scripts and the compilation script_  
 
 This figure demonstrates the workflow logic:
 ![Flow chart of analysis pathway](https://github.com/WA-Nearshore/wa-kelp-linear-extent/blob/main/analysis_pathway.jpg?raw=true)
