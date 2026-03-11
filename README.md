@@ -10,5 +10,12 @@ More information about this project, including data access and User Guide, is av
 
 Contact nearshore@dnr.wa.gov with questions about usage of these scripts or this dataset.
 
-This project is structured to first run data synthesis scripts for each individual input data source. Then a join script (kelp_synth_join.py) compiles all the results and produces the linear extent datasets. The pipeline script (linear_extent_analysis_pipeline.py) can run all the scripts in the appropriate order. This figure demonstrates the workflow logic:
+Project Structure: 
+kelp_linear-extent/
+├── linearize/ _this folder contains analysis scripts for individual data sources_
+├── compile_linear_data.py _this script compiles outputs from the linearize scripts_
+├── fns.py _this script contains functions and utilities used in linearize scripts_
+├── pipeline.py _this script runs the entire workflow, including all linearize scripts and the compilation script_
+
+This figure demonstrates the workflow logic:
 ![Flow chart of analysis pathway](https://github.com/WA-Nearshore/wa-kelp-linear-extent/blob/main/analysis_pathway.jpg?raw=true)
