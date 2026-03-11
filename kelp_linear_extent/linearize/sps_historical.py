@@ -1,19 +1,26 @@
 # Integrate Berry 2021 data with this dataset
 # Data source = "K:\kelp\projects\historical_comparison_sps_2018\spatial_data\final_gdb\bull_kelp_sps_1878_2017.gdb"
+# Tabular version of this data is also available at https://doi.org/10.1371/journal.pone.0229703
+
+# 2026 code improvements = complete 2026-03-11 (no change to data or analysis)
 
 # set up env ----------------------------------------
 
+import os
 import pandas as pd
-import numpy as np
-import arcpy
 from arcgis import GeoAccessor, GeoSeriesAccessor
+
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+print("Project working directory:")
+print(PROJECT_ROOT)
 
 # load data --------------------------------------------
 
-kelp_obs = "kelp_data_sources\\bull_kelp_sps_1878_2017.gdb\\kelp_all_obs"
+dataset_name = "Berry_et_al_2021"
+kelp_obs = os.path.join(PROJECT_ROOT, "kelp_data_sources\\bull_kelp_sps_1878_2017.gdb\\kelp_all_obs")
 kelp_df = pd.DataFrame.spatial.from_table(kelp_obs)
 
-lines_fc = "LinearExtent.gdb\\all_lines_clean_v2"
+lines_fc = os.path.join(PROJECT_ROOT, "LinearExtent.gdb\\all_lines_clean_v2")
 lines_df = pd.DataFrame.spatial.from_featureclass(lines_fc)
 
 print("")
@@ -31,7 +38,7 @@ print(f"Non-matching codes: {diff_codes}")
 
 kelp_df["presence"] = kelp_df["kelp"].astype(int)
 kelp_df["year"] = kelp_df["surveydate"].astype(int)
-kelp_df["source"] = "Berry_et_al_2021"
+kelp_df["source"] = dataset_name
 
 out_table = kelp_df[['SITE_CODE', 'source', 'year', 'presence']]
 print("Reformatted table:")
@@ -47,4 +54,8 @@ out_table = out_table[out_table["year"] != 2017]
 print(out_table["year"].unique())
 
 # write out ---------------------------------------------
-out_table.to_csv('kelp_data_synth_results\\sps_historical.csv')
+os.makedirs(f"{PROJECT_ROOT}\\kelp_data_linear_outputs", exist_ok=True)
+out_results = os.path.join(PROJECT_ROOT, f"kelp_data_linear_outputs\\{dataset_name}_result.csv")
+out_table.to_csv(out_results)
+print(f"Saved as csv here: {out_results}")
+ 
