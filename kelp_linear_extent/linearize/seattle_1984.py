@@ -1,28 +1,41 @@
 # 1984 data analysis
 # data from K:\kelp\projects\2024_westseattle_magnolia_1984_imagery\WestSeattleMagnolia1984_final.gdb
-# double check that kelp_presence attribute is populated correctly in fc before running
 
-# set env -----------------------------------------------------------
-import arcpy
+# 2026 update (no data update, just script improvement) = complete, 2026-03-11
+
+# set environment -------------------------------------------------------
+
 import sys
-import pandas as pd
 import os
-from arcgis.features import GeoAccessor, GeoSeriesAccessor
-import fns
+import arcpy
+import pandas as pd
+from arcgis.features import GeoAccessor, GeoSeriesAccessor # these are used to create sedfs
 
-main_dir = os.path.dirname()
+# project root is the folder within which the entire kelp_linear_extent module is located (2 levels up from this file)
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+print("Project working directory:")
+print(PROJECT_ROOT)
+sys.path.append(PROJECT_ROOT) # this lets the project function library be found as a module
 
-sys.path.append(main_dir)
-arcpy.env.overwriteOutput = True
+import kelp_linear_extent.fns as fns # project function library
 
+arcpy.env.overwriteOutput = True # overwrite outputs 
+
+# set workspace to parent folder
 fns.reset_ws()
+
+# set up scratch workspace
+SCRATCH_WS = fns.config_scratch()
+
+# USER INPUT -----------------------------------------------------------
+
+dataset_name = "WADNR_1984_Seattle_Imagery" # this will be appended to data records 
+abundance_containers = os.path.join(PROJECT_ROOT, "LinearExtent.gdb\\abundance_containers")
+fc = os.path.join(PROJECT_ROOT, "kelp_data_sources\\WestSeattleMagnolia1984\\WestSeattleMagnolia1984_final.gdb\\bull_kelp_1984_edits_reviewed")
 
 # prep data ------------------------------------------------------------
 
-fc = "\kelp_data_sources\\WestSeattleMagnolia1984\\WestSeattleMagnolia1984_final.gdb\\bull_kelp_1984_edits_reviewed"
-
-# abundance containers
-abundance_containers = "\LinearExtent.gdb\\abundance_containers"
+print(f"Kelp data to be linearized: {fc}")
 
 # convert to df
 print("Converting to dataframe...")
@@ -44,7 +57,7 @@ pres = (
     .rename(columns={"kelp_presence": "presence"})
 )
 pres["year"] = "1984"
-pres["source"] = "WADNR_1984_Seattle_Imagery"
+pres["source"] = dataset_name
 print("Presence results:")
 print(pres.head())
 
@@ -53,12 +66,12 @@ print(pres.head())
 # create a filtered version of the dataset with only line segments w/ kelp present
 print("Filtering dataset to presence features only...")
 df_filt = df[df["kelp_presence"] == 1]
-fc_filt = "scratch.gdb\\kelp_only_1984"
+fc_filt = os.path.join(SCRATCH_WS, "kelp_only_1984")
 df_filt.spatial.to_featureclass(location=fc_filt, overwrite=True)
 
 # run the function
 print("Calculating abundance...")
-ab = fns.calc_abundance_lines(abundance_containers, [fc_filt])
+ab = fns.calc_abundance_lines(abundance_containers, [fc_filt], PROJECT_ROOT)
 ab = ab.drop("fc_name", axis=1)
 print("Abundance results: ")
 print(ab.head())
@@ -70,9 +83,10 @@ print(result.head())
 
 # export results ------------------------------------------------------
 
-
 # save to csv in results folder
-#result.to_csv("kelp_data_synth_results\\seattle_1984_synth.csv")
-
-
+os.makedirs(f"{PROJECT_ROOT}\\kelp_data_linear_outputs", exist_ok=True)
+out_results = os.path.join(PROJECT_ROOT, f"kelp_data_linear_outputs\\{dataset_name}_result.csv")
+result.to_csv(out_results)
+print(f"Saved as csv here: {out_results}")
+ 
 fns.clear_scratch()

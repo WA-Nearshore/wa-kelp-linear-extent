@@ -124,7 +124,7 @@ results = pd.merge(presence, abundance, how="left", on=["SITE_CODE", "year"])
 
 # Write to csv
 os.makedirs(f"{PROJECT_ROOT}\\kelp_data_linear_outputs", exist_ok=True)
-out_results = os.path.join(PROJECT_ROOT, "kelp_data_linear_outputs\\dnr_kayak_synth.csv")
+out_results = os.path.join(PROJECT_ROOT, f"kelp_data_linear_outputs\\{dataset_name}_result.csv")
 results.to_csv(out_results)
 print(f"Saved as csv here: {out_results}")
  

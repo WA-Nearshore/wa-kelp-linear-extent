@@ -246,7 +246,7 @@ def calc_abundance_lines(abundance_containers, kelp_fcs, PROJECT_ROOT):
         fc_desc = arcpy.Describe(fc)
 
         # set the out path for analyzed fcs
-        out_fc = os.path.join(PROJECT_ROOT, f"scratch.gdb//ab_{fc_desc.name}")
+        out_fc = os.path.join(PROJECT_ROOT, "scratch.gdb", f"ab_{fc_desc.name}")
 
         # run summarize within
         try: 
