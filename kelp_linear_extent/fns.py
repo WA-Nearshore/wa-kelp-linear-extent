@@ -1,26 +1,62 @@
 
 # function library
 import os
+from pathlib import Path
 import arcpy
-import arcpy.management
-import arcpy.analysis
-import arcpy.conversion
 import pandas as pd
 import numpy as np
-import sys
-from arcgis.features import GeoAccessor, GeoSeriesAccessor
+from arcgis.features import GeoAccessor, GeoSeriesAccessor 
 
 arcpy.env.overwriteOutput = True
 
+# utilities ---------------------------------------------------------------------------------------------
 # store parent folder workspace in function 
-def reset_ws(): 
-    arcpy.env.workspace = os.getcwd()
+def reset_ws(PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))): 
+    """
+    Resets the arcpy workspace to the project root folder
+    By default, the root folder is the the folder that contains the kelp_linear_extent package (three folders up from current script)
+    """
+    arcpy.env.workspace = PROJECT_ROOT
 
-# summarize within 
+# configure a scratch workspace
+def config_scratch(PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))):
+    """
+    Creates a scratch.gdb or clears scratch.gdb if it already exists.
+    Scratch ws will be in project root by default. is the folder containing the kelp_linear_extent package.
+    Optionally specify a different parent folder for scratch.gdb using PROJECT_ROOT = "".
+    Returns the scratch workspace as a file path, to be used as a variable elsewhere in the script. 
+    """
+    SCRATCH_WS = os.path.join(PROJECT_ROOT, "scratch.gdb")
+    print("Configuring scratch workspace...")
+    if not arcpy.Exists(SCRATCH_WS):
+        arcpy.management.CreateFileGDB(PROJECT_ROOT, "scratch.gdb")
+        print(f"Created new gdb at {SCRATCH_WS}")
+    else:
+        print(f"Scratch workspace already exists at {SCRATCH_WS}. Clearing files... ")
+        clear_scratch(SCRATCH_WS)
 
-def sum_kelp_within(fc_list, containers, variable_survey_area=False): 
+    return SCRATCH_WS
+
+# clear scratch workspace
+def clear_scratch(SCRATCH_WS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scratch.gdb")):   
+    """
+    Clears the default scratch workspace. Useful at the end of analysis. Optionally, set to a different gdb to delete all feature classes. 
+    """
+    arcpy.env.workspace = SCRATCH_WS
+    scratch_fcs = arcpy.ListFeatureClasses()
+    for fc in scratch_fcs:
+        arcpy.Delete_management(fc)
+        print(f"Deleted feature class: {fc}")
+
+
+# main tools ------------------------------------------------------------------------------------
+# function to calculate presence
+def sum_kelp_within(fc_list, containers, SCRATCH_WS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scratch.gdb"), variable_survey_area=False): 
     # fc_list = list of feature class of kelp beds OR paired list of kelp feature classes, kelp survey area
     # containers = containers for summarize within ALREADY CLIPPED TO SURVEY EXTENT if variable_survey_area=False
+    
+    # intialize list of output fcs
+    sumwithin_fcs = []
 
     # if each year/survey needs its own survey area: 
     if variable_survey_area:
@@ -28,21 +64,22 @@ def sum_kelp_within(fc_list, containers, variable_survey_area=False):
             print("Beginning sum within for: ")
             print(f"Kelp data: {kelp_fc}")
             print(f"Survey boundary: {svy_fc}")
-           
+
             # clip containers to survey area footprint
-            print(f"Clipping containers to {svy_fc}...")
-            containers_clip = "scratch.gdb\\containers_clip"
+            print("Clipping containers to survey boundary...")
+            containers_clip = os.path.join(SCRATCH_WS, "containers_clip")
             arcpy.analysis.Clip(containers, svy_fc, containers_clip)
             
-            # run summarize within function
+            # get the describe object for the kelp feature class
             fc_desc = arcpy.Describe(kelp_fc)
-            out_fc = f"scratch.gdb\\sumwithin{fc_desc.name}"
 
-            # set env scratch space to env to avoid error 100014
-            arcpy.env.scratchWorkspace = arcpy.env.workspace
+            # set the out path for each fc 
+            out_fc = os.path.join(SCRATCH_WS, f"sum{fc_desc.name}".replace(" ",""))
+            sumwithin_fcs.append(out_fc)
 
-            print("Running sum within...")
+            print(f"Running sum within for {fc_desc.name}...")
             try:
+                # run summarize within
                 arcpy.analysis.SummarizeWithin(
                     in_polygons = containers_clip,
                     in_sum_features = kelp_fc,
@@ -51,49 +88,56 @@ def sum_kelp_within(fc_list, containers, variable_survey_area=False):
                 ) # save results in scratch gdb 
 
                 print("Summarize Within complete for " + fc_desc.name)
-            except arcpy.ExecuteError:
-                arcpy.AddError(arcpy.GetMessages(2))
-            except:
-                e=sys.exc_info()[1]
+            except arcpy.ExecuteError: 
+                print(f"Failed to generate {out_fc}")
+                arcpy.AddError(arcpy.GetMessages())
+                break
+            except Exception as e:
                 print(e.args[0])
-                
+                break
 
-    # if survey area is constant across years, containers are clipped upstream:
+    # if survey area is constant across years, containers are clipped upstream in the linearizing script
     else:
         for fc in fc_list:
 
             # get the describe object for the feature class
             fc_desc = arcpy.Describe(fc)
 
-            # set the out path to the include the feature class name
-            out_fc_path = (f"scratch.gdb/sumwithin{fc_desc.name}".replace(" ",""))
+            # Set the out path for each fc 
+            out_fc = os.path.join(SCRATCH_WS, f"sum{fc_desc.name}".replace(" ",""))
+            sumwithin_fcs.append(out_fc)
+
             print(f"Running sum within for {fc_desc.name}...")
-
-            # set env scratch space to env to avoid error 100014
-            arcpy.env.scratchWorkspace = arcpy.env.workspace
-
             try:
                 # run summarize within
                 arcpy.analysis.SummarizeWithin(
                     in_polygons = containers,
                     in_sum_features = fc,
-                    out_feature_class = out_fc_path,
+                    out_feature_class = out_fc,
                     shape_unit = "HECTARES"
                 )
 
                 print(f"Summarize Within complete for {fc_desc.name}")
             except arcpy.ExecuteError:
-                arcpy.AddError(arcpy.GetMessages(2))
-            except:
-                e=sys.exc_info()[1]
+                arcpy.AddError(arcpy.GetMessages())
+                break
+            except Exception as e:
                 print(e.args[0])
-                
-# feature class to dataframe
+                break
 
+    # return list of resulting feature classes        
+    return sumwithin_fcs
+                    
+# feature class to dataframe
 def df_from_fc(in_features, source_name):
-    # in_features: list of feature classes to convert to dataframes 
-    # source_name: string to be used as source name in table
-    # note: input features MUST have year as last 4 characters of name for this to work 
+
+    """
+    converts list of features into a list of formatted dataframes
+    * **in_features**: list of feature classes to convert to dataframes 
+    * **source_name**: string to be used as source name in table
+    * note: input features MUST have year as last 4 characters of name for this to work 
+    """
+
     sdf_list = []
     for feature in in_features:
         
@@ -111,17 +155,8 @@ def df_from_fc(in_features, source_name):
 
     return sdf_list    
 
-# clear scratch to keep project size down 
-def clear_scratch():
-    arcpy.env.workspace = os.path.join(os.getcwd(), "scratch.gdb")
-    scratch_fcs = arcpy.ListFeatureClasses()
-    for fc in scratch_fcs:
-        arcpy.Delete_management(fc)
-        print(f"Deleted feature class: {fc}")
-
-
 # tool for calculating proportional presence (abundance) of polygon kelp beds along line segments
-def calc_abundance(abundance_containers, kelp_fcs):
+def calc_abundance(abundance_containers, kelp_fcs, PROJECT_ROOT):
     
     #initial result sdf list 
     df_list = []
@@ -132,11 +167,8 @@ def calc_abundance(abundance_containers, kelp_fcs):
         # get the describe object for the feature class
         fc_desc = arcpy.Describe(fc)
 
-        # set the out path to memory
-        out_fc = (f"scratch.gdb//ab{fc_desc.name}")
-
-            # try setting scratch env...
-        arcpy.env.scratchWorkspace = arcpy.env.workspace 
+        # set the out path for the analyzed feature classes 
+        out_fc = os.path.join(PROJECT_ROOT, "scratch.gdb", f"ab{fc_desc.name}")
 
         # run summarize within
         try: 
@@ -150,9 +182,10 @@ def calc_abundance(abundance_containers, kelp_fcs):
             print(f"Result written to {out_fc}")
         except arcpy.ExecuteError:
             arcpy.AddError(arcpy.GetMessages(2))
-        except:
-            e=sys.exc_info()[1]
+            break
+        except Exception as e:
             print(e.args[0])
+            break
 
         print("Converting to df...")
         df = pd.DataFrame.spatial.from_featureclass(out_fc)
@@ -197,11 +230,11 @@ def calc_abundance(abundance_containers, kelp_fcs):
         df_list.append(result)
 
     abundance_results = pd.concat(df_list)
-    return (abundance_results)
+    return abundance_results
 
 # create a function to calculate abundance (aka proportional presence) for line-based datasets
 # needs to run on a copy of line based datasets that have been filtered to ONLY kelp presence features
-def calc_abundance_lines(abundance_containers, kelp_fcs):
+def calc_abundance_lines(abundance_containers, kelp_fcs, PROJECT_ROOT):
     
     #initial result sdf list 
     df_list = []
@@ -212,11 +245,8 @@ def calc_abundance_lines(abundance_containers, kelp_fcs):
         # get the describe object for the feature class
         fc_desc = arcpy.Describe(fc)
 
-        # set the out path to memory
-        out_fc = (f"scratch.gdb//ab_{fc_desc.name}")
-
-            # try setting scratch env...
-        arcpy.env.scratchWorkspace = arcpy.env.workspace 
+        # set the out path for analyzed fcs
+        out_fc = os.path.join(PROJECT_ROOT, f"scratch.gdb//ab_{fc_desc.name}")
 
         # run summarize within
         try: 
@@ -230,8 +260,7 @@ def calc_abundance_lines(abundance_containers, kelp_fcs):
             print(f"Result written to {out_fc}")
         except arcpy.ExecuteError:
             arcpy.AddError(arcpy.GetMessages(2))
-        except:
-            e=sys.exc_info()[1]
+        except Exception as e:
             print(e.args[0])
 
         print("Converting to df...")
@@ -277,4 +306,4 @@ def calc_abundance_lines(abundance_containers, kelp_fcs):
         df_list.append(result)
 
     abundance_results = pd.concat(df_list)
-    return (abundance_results)
+    return abundance_results

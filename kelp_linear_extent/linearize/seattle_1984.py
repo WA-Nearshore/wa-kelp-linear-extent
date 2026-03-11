@@ -10,17 +10,19 @@ import os
 from arcgis.features import GeoAccessor, GeoSeriesAccessor
 import fns
 
-sys.path.append(os.getcwd())
+main_dir = os.path.dirname()
+
+sys.path.append(main_dir)
 arcpy.env.overwriteOutput = True
 
 fns.reset_ws()
 
 # prep data ------------------------------------------------------------
 
-fc = "kelp_data_sources\\WestSeattleMagnolia1984\\WestSeattleMagnolia1984_final.gdb\\bull_kelp_1984_edits_reviewed"
+fc = "\kelp_data_sources\\WestSeattleMagnolia1984\\WestSeattleMagnolia1984_final.gdb\\bull_kelp_1984_edits_reviewed"
 
 # abundance containers
-abundance_containers = "LinearExtent.gdb\\abundance_containers"
+abundance_containers = "\LinearExtent.gdb\\abundance_containers"
 
 # convert to df
 print("Converting to dataframe...")
@@ -58,7 +60,7 @@ df_filt.spatial.to_featureclass(location=fc_filt, overwrite=True)
 print("Calculating abundance...")
 ab = fns.calc_abundance_lines(abundance_containers, [fc_filt])
 ab = ab.drop("fc_name", axis=1)
-print("Abundance esults: ")
+print("Abundance results: ")
 print(ab.head())
 
 # combine
@@ -70,7 +72,7 @@ print(result.head())
 
 
 # save to csv in results folder
-result.to_csv("kelp_data_synth_results\\seattle_1984_synth.csv")
+#result.to_csv("kelp_data_synth_results\\seattle_1984_synth.csv")
 
 
 fns.clear_scratch()
