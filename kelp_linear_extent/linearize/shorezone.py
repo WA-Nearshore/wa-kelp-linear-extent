@@ -1,6 +1,6 @@
 # ShoreZone data synth
 
-# does not use project function library 
+# 2026 script improvements = complete 2026-03-11 (no data updates)
 
 # Data downloaded 2024-07-30 from: 
 # 20240730 https://fortress.wa.gov/dnr/adminsa/gisdata/datadownload/state_DNR_ShoreZone.zip
@@ -8,47 +8,56 @@
 
 # some years still returning as zero this is probably because of the diff methods between presence/abundance
 
-# set env -----------------------------------------------
-import arcpy
-import os
-import pandas as pd
-import numpy as np
-from arcgis.features import GeoAccessor, GeoSeriesAccessor
-import matplotlib.pyplot as plt
+# set environment -------------------------------------------------------
+
 import sys
-sys.path.append(os.getcwd())
+import os
+import arcpy
+import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
+from arcgis.features import GeoAccessor, GeoSeriesAccessor # these are used to create sedfs
 
-# import the project function library 
-import fns
+# project root is the folder within which the entire kelp_linear_extent module is located (2 levels up from this file)
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+print("Project working directory:")
+print(PROJECT_ROOT)
+sys.path.append(PROJECT_ROOT) # this lets the project function library be found as a module
 
-arcpy.env.overwriteOutput = True
+import kelp_linear_extent.fns as fns # project function library
 
+arcpy.env.overwriteOutput = True # overwrite outputs 
+
+# set workspace to parent folder
 fns.reset_ws()
 
-# prep data ---------------------------------------------
+# set up scratch workspace
+SCRATCH_WS = fns.config_scratch()
 
-# Containers
-containers = "LinearExtent.gdb\\kelp_containers_v2"
+# USER INPUT -----------------------------------------------------------
 
-print("Using " + containers + " as container features")
+dataset_name = "WADNR_ShoreZone"
+containers = os.path.join(PROJECT_ROOT, "LinearExtent.gdb\\kelp_containers_v2")
+abundance_containers = os.path.join(PROJECT_ROOT, "LinearExtent.gdb\\abundance_containers")
 
 # Set path to kelp data
-kelp_lines = "kelp_data_sources\\state_DNR_ShoreZone\\shorezone_themes.gdb\\fkelplin"
+kelp_lines = os.path.join(PROJECT_ROOT, "kelp_data_sources\\state_DNR_ShoreZone\\shorezone_themes.gdb\\fkelplin")
 
 # set path to svy lines 
-svy_lines = "kelp_data_sources\\state_DNR_ShoreZone\\shorezone.gdb\\szline" 
-# Just need VIDEO_DATE field from this to get the year 
+svy_lines = os.path.join(PROJECT_ROOT, "kelp_data_sources\\state_DNR_ShoreZone\\shorezone.gdb\\szline")
+# Just need VIDEO_DATE field from this fc to get the year 
 
 # prepare data ------------------------------
+print(f"Using {containers} as container features")
 
 # buffer fkelplin by ~100m
 print("Buffering lines...")
-buff_lines = "scratch.gdb\\fkelplin_buff10m"
+buff_lines = os.path.join(SCRATCH_WS, "fkelplin_buff10m")
 arcpy.analysis.Buffer(kelp_lines, buff_lines, '10 METERS')
 
 # Remove overlaps 
 print("Removing overlaps...")
-buff_lines_RO = "scratch.gdb\\fkelplin_buf10m_removeO"
+buff_lines_RO = os.path.join(SCRATCH_WS,"fkelplin_buf10m_removeO")
 arcpy.analysis.RemoveOverlapMultiple(
     in_features=buff_lines,
     out_feature_class=buff_lines_RO,
@@ -92,7 +101,7 @@ buff_line = arcpy.management.RemoveJoin(buff_line_join)
 
 print("Creating a version of the data with kelp features only...")
 # filter feature class to only kelp presence features
-buff_kelp_only = "scratch.gdb\\buff_kelp_only"
+buff_kelp_only = os.path.join(SCRATCH_WS, "buff_kelp_only")
 arcpy.management.CopyFeatures(buff_line, buff_kelp_only)
 with arcpy.da.UpdateCursor(buff_kelp_only, ["FLOATKELP","OID@"]) as cursor:
     for row in cursor:
@@ -103,7 +112,7 @@ with arcpy.da.UpdateCursor(buff_kelp_only, ["FLOATKELP","OID@"]) as cursor:
 
 # Run an intersect
 print("Intersecting shorezone data with containers...")
-kelp_int = "scratch.gdb\kelplin_cont_int"
+kelp_int = os.path.join(SCRATCH_WS,"kelplin_cont_int")
 arcpy.analysis.PairwiseIntersect(
     in_features=[buff_line, containers],
     out_feature_class=kelp_int,
@@ -140,9 +149,9 @@ print(site_year_max.info())
 
 # calculate presence --------------------------------------------
 
-fns.sum_kelp_within([buff_kelp_only], containers)
+sumwithin_kelp = fns.sum_kelp_within([buff_kelp_only], containers)
 
-presence = fns.df_from_fc(["scratch.gdb\\sumwithinbuff_kelp_only"], "WADNR_ShoreZone")
+presence = fns.df_from_fc(sumwithin_kelp, dataset_name)
 presence = pd.concat(presence)
 print("Presence result:")
 print(presence.head())
@@ -150,8 +159,7 @@ print(presence.info())
 
 # calculate abundance -----------------------------------------
 
-abundance_containers = "LinearExtent.gdb\\abundance_containers"
-abundance = fns.calc_abundance(abundance_containers, [buff_kelp_only])
+abundance = fns.calc_abundance(abundance_containers, [buff_kelp_only], PROJECT_ROOT)
 print("Abundance result:")
 print(abundance.head())
 print(abundance.info())
@@ -177,5 +185,8 @@ print(result.head())
 result = result.dropna(subset=["year"], axis=0)
 
 # Write the result to CSV
-result.to_csv(r"kelp_data_synth_results\shorezone_synth.csv")
-print("Fin.")
+# Write to csv
+os.makedirs(f"{PROJECT_ROOT}\\kelp_data_linear_outputs", exist_ok=True)
+out_results = os.path.join(PROJECT_ROOT, f"kelp_data_linear_outputs\\{dataset_name}_result.csv")
+result.to_csv(out_results)
+print(f"Saved as csv here: {out_results}")
