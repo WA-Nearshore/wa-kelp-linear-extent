@@ -1,14 +1,12 @@
 # Linearize DNR kelp kayak survey data
 
-# 2026 update = complete, 2026-03-10
+# 2026 update = complete, 2026-03-16
 
 # Data copied from K:\kelp\bull_kelp_kayak\2024\data_processing\gdb\DNR_bull_kelp_kayak_2025.gdb on 2026-01-02
 
 # This dataset is a little funky in that there are small 'absence' polygons at sites where there was an annual survey to confirm there was no kelp 
 # Different sites surveyed each year --> if there is no absence polygon, it wasn't surveyed
-# Note 1 --> check to make sure that the annual survey boundary features T2013-T2024 were successfully deleted from the kayak .gdb before running 
-# Note 2 --> split feature classes does not respect overwriteOutput=True. if the script breaks in the middle, you must manually delete intermediate data.
-# Yes this makes it very annoying to debug 
+# Note --> check to make sure that the annual survey boundary features T2013-T2024 were successfully deleted from the kayak.gdb before running 
 
 # set environment -------------------------------------------------------
 
@@ -38,7 +36,7 @@ SCRATCH_WS = fns.config_scratch()
 
 dataset_name = "WADNR_Kayak" # this will be appended to data records 
 containers = os.path.join(PROJECT_ROOT, "LinearExtent.gdb", "kelp_containers_v2")
-abundance_containers = os.path.join(PROJECT_ROOT, "LinearExtent.gdb\\abundance_containers")
+cov_cat_containers = os.path.join(PROJECT_ROOT, "LinearExtent.gdb\\abundance_containers")
 kelp_data_path = os.path.join(PROJECT_ROOT, "kelp_data_sources\\DNR_bull_kelp_kayak_2025.gdb") 
 
 # prep data ------------------------------------------------------------
@@ -109,18 +107,18 @@ print(sdf_list[1].head())
 print("Combining to one dataframe")
 presence = pd.concat(sdf_list)
 
-# calculate abundance --------------------------------------
-print("Calculating abundance...")
-abundance = fns.calc_abundance(abundance_containers, split_fcs, PROJECT_ROOT)
+# calculate coverage category  --------------------------------------
+print("Calculating coverage category...")
+cov_cat = fns.calc_cov_cat(cov_cat_containers, split_fcs)
 
 # add the year col
-abundance['year'] = abundance['fc_name'].str[-4:]
-abundance = abundance.drop(columns=['fc_name'])
-print("Abundance data: ")
-print(abundance.head())
+cov_cat['year'] = cov_cat['fc_name'].str[-4:]
+cov_cat = cov_cat.drop(columns=['fc_name'])
+print("Coverage category data: ")
+print(cov_cat.head())
 
 # combine and export -----------------------------------------
-results = pd.merge(presence, abundance, how="left", on=["SITE_CODE", "year"])
+results = pd.merge(presence, cov_cat, how="left", on=["SITE_CODE", "year"])
 
 # Write to csv
 os.makedirs(f"{PROJECT_ROOT}\\kelp_data_linear_outputs", exist_ok=True)
