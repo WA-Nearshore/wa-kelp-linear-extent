@@ -13,14 +13,17 @@ Contact nearshore@dnr.wa.gov with questions about usage of these scripts or this
 
 Project Structure:  
 ```
-ProjectFolder/  
-├── kelp_linear_extent/  
-|   ├── linearize/ #this folder contains analysis scripts for individual data sources 
-|   ├── compile_linear_data.py #this script compiles outputs from the linearize scripts  
-|   ├── fns.py #this script contains functions and utilities used in linearize scripts  
-|   └── pipeline.py #this script runs the entire workflow, including all linearize scripts and the compilation script  
-├── kelp_data_sources/ #(files not included in repo) raw kelp spatial data_  
-└── kelp_data_linear_outputs/ #(files not included in repo) outputs from linearize scripts 
+    ProjectFolder/  
+    ├── kelp_data_compiled/ #(files not included in repo) outputs from synthesis of linearized data  
+    ├── kelp_data_linear_outputs/ #(files not included in repo) outputs from linearize scripts for individual sources
+    ├── kelp_data_sources/ #(files not included in repo) raw kelp spatial data
+    ├── kelp_linear_extent/  
+    |   ├── linearize/ #this folder contains analysis scripts for individual data sources 
+    |   ├── compile_linear_data.py #this script compiles outputs from the linearize scripts  
+    |   ├── fns.py #this script contains functions and utilities used in linearize scripts  
+    |   └── pipeline.py #this script runs the entire workflow, including all linearize scripts and the compilation script  
+    └── kelp_reference/ # metadata and supporting docs 
+ 
 ```
 
 This figure demonstrates the workflow logic:
