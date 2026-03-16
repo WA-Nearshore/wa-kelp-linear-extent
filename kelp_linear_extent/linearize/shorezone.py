@@ -1,6 +1,6 @@
 # ShoreZone data synth
 
-# 2026 script improvements = FIX with new sum wthin and cov cat fns
+# 2026 script improvements = complete 2026-03-16, no data changes
 
 # Data downloaded 2024-07-30 from: 
 # 20240730 https://fortress.wa.gov/dnr/adminsa/gisdata/datadownload/state_DNR_ShoreZone.zip
