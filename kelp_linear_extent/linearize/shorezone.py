@@ -1,12 +1,12 @@
 # ShoreZone data synth
 
-# 2026 script improvements = complete 2026-03-11 (no data updates)
+# 2026 script improvements = FIX with new sum wthin and cov cat fns
 
 # Data downloaded 2024-07-30 from: 
 # 20240730 https://fortress.wa.gov/dnr/adminsa/gisdata/datadownload/state_DNR_ShoreZone.zip
 # minor manual preprocessing -> see note about years below
 
-# some years still returning as zero this is probably because of the diff methods between presence/abundance
+# some years still returning as zero this is probably because of the diff methods between presence/cov cat
 
 # set environment -------------------------------------------------------
 
@@ -38,7 +38,7 @@ SCRATCH_WS = fns.config_scratch()
 
 dataset_name = "WADNR_ShoreZone"
 containers = os.path.join(PROJECT_ROOT, "LinearExtent.gdb\\kelp_containers_v2")
-abundance_containers = os.path.join(PROJECT_ROOT, "LinearExtent.gdb\\abundance_containers")
+cov_cat_containers = os.path.join(PROJECT_ROOT, "LinearExtent.gdb\\abundance_containers")
 
 # Set path to kelp data
 kelp_lines = os.path.join(PROJECT_ROOT, "kelp_data_sources\\state_DNR_ShoreZone\\shorezone_themes.gdb\\fkelplin")
@@ -149,7 +149,7 @@ print(site_year_max.info())
 
 # calculate presence --------------------------------------------
 
-sumwithin_kelp = fns.sum_kelp_within([buff_kelp_only], containers)
+sumwithin_kelp = fns.sum_kelp_within([buff_kelp_only], containers) # even though the base data is lines, the kelp data is now polygons (buffered)
 
 presence = fns.df_from_fc(sumwithin_kelp, dataset_name)
 presence = pd.concat(presence)
@@ -157,16 +157,16 @@ print("Presence result:")
 print(presence.head())
 print(presence.info())
 
-# calculate abundance -----------------------------------------
+# calculate coverage category -----------------------------------------
 
-abundance = fns.calc_abundance(abundance_containers, [buff_kelp_only], PROJECT_ROOT)
-print("Abundance result:")
-print(abundance.head())
-print(abundance.info())
+cov_cat = fns.calc_cov_cat(cov_cat_containers, [buff_kelp_only]) # even though the base data is lines, the kelp data is now polygons (buffered)
+print("Coverage category result:")
+print(cov_cat.head())
+print(cov_cat.info())
 # compile and export ---------------------------------------
 
-print("Compiling presence and abundance...")
-result = pd.merge(presence, abundance, how='left', on = 'SITE_CODE')
+print("Compiling presence and coverage category results...")
+result = pd.merge(presence, cov_cat, how='left', on = 'SITE_CODE')
 print(result.head())
 print(result.info())
 print("Adding year column...")
@@ -176,7 +176,7 @@ print(result.info())
 
 # reformat table 
 result['year'] = result['year_y']
-result = result[['SITE_CODE', 'abundance', 'presence', 'year', 'source']]
+result = result[['SITE_CODE', 'coverage_cat', 'presence', 'year', 'source']]
 print("Final results table:")
 print(result.info())
 print(result.head())
