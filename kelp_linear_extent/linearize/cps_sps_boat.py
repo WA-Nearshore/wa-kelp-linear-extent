@@ -1,6 +1,6 @@
 # Reformat the CPS & SPS linear extent field survey data
 
-# 2026 code improvements = complete 2026-03-16
+# 2026 code improvements = complete 2026-03-16 (no data changes, only script improvements)
 
 # set environment -------------------------------------------------------
 

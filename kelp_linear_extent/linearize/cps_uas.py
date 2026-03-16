@@ -1,6 +1,6 @@
 # Summarize WADNR/Suquamish CPS UAS baseline survey data for linear extent
 
-# 2026 updates = complete 2026-03-13
+# 2026 updates = complete 2026-03-16 (no data changes, only script improvements)
 
 # Kelp bed data all copied 2025-01-30
 # K:\kelp\projects\2023_Suquamish_CPS_mapping\data\uas_data\derived_results\Suquamish_UAS_survey_bed_extents.gdb
