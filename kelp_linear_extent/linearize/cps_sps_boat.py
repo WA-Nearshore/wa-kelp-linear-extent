@@ -1,6 +1,6 @@
 # Reformat the CPS & SPS linear extent field survey data
 
-# 2026 code improvements = complete 2026-03-11. no change to data or analysis.
+# 2026 code improvements = complete 2026-03-16
 
 # set environment -------------------------------------------------------
 
@@ -30,7 +30,7 @@ SCRATCH_WS = fns.config_scratch()
 
 dataset_name_sps = "WADNR_sps_boat_survey"
 dataset_name_cps = "WADNR_cps_boat_survey"
-abundance_containers = os.path.join(PROJECT_ROOT, "LinearExtent.gdb\\abundance_containers")
+cov_cat_containers = os.path.join(PROJECT_ROOT, "LinearExtent.gdb\\abundance_containers")
 
 # cps data from K:\Kelp\2019_cps_field\spatial_data\bull_kelp_cps_2019.gdb
 cps_orig= os.path.join(PROJECT_ROOT,"kelp_data_sources\\bull_kelp_cps_2019.gdb\\bull_kelp_2019")
@@ -57,7 +57,7 @@ print("Converting to dataframes...")
 cps_df = pd.DataFrame.spatial.from_featureclass(cps_fc)
 sps_df = pd.DataFrame.spatial.from_featureclass(sps_fc)
 
-# calculate sps presence and abundance -----------------------------------
+# calculate sps presence and coverage category -----------------------------------
 print("Processing SPS data...")
 print("Calculating presence...")
 # presence
@@ -69,7 +69,7 @@ sps_pres['source'] = dataset_name_sps
 print("Presence results: ")
 print(sps_pres.head())
 
-# abundance
+# coverage category 
 # create a filtered version of the dataset with only line segments w/ kelp present 
 print("Filtering dataset to presence features only...")
 sps_df_filt = sps_df[sps_df['kelp']== 1]
@@ -77,10 +77,10 @@ sps_fc_filt = os.path.join(SCRATCH_WS, "sps_kelp_only")
 sps_df_filt.spatial.to_featureclass(location=sps_fc_filt, overwrite=True)
 
 # run the function 
-print("Calculating abundance...")
-sps_ab = fns.calc_abundance_lines(abundance_containers, [sps_fc_filt], PROJECT_ROOT)
+print("Calculating coverage category...")
+sps_ab = fns.calc_cov_cat(cov_cat_containers, [sps_fc_filt], kelp_geometry_type="line")
 sps_ab = sps_ab.drop('fc_name', axis=1)
-print("Abundance results: ")
+print("Cov cat results: ")
 print(sps_ab.head())
 
 # combine 
@@ -96,7 +96,7 @@ def check_key(df, key_column):
 
 check_key(sps_result, 'SITE_CODE')
 
-# calculate cps presence and abundance -----------------------------------
+# calculate cps presence and coverage category -----------------------------------
 print("On to CPS now...")
 # concatenate cps SITE_NO and REGION cols into SITE_CODE
 cps_df['SITE_NO_str'] = cps_df['SITE_NO'].astype(str)
@@ -118,14 +118,14 @@ cps_pres = cps_df.groupby('SITE_CODE', as_index=False).agg(
 cps_pres['year'] = '2019'
 cps_pres['source'] = dataset_name_cps
 
-# abundance
+# coverage category
 # create a filtered version of the dataset with only line segments w/ kelp present 
 cps_df_filt = cps_df[cps_df['kelp']== 1]
 cps_fc_filt = os.path.join(SCRATCH_WS, "cps_kelp_only")
 cps_df_filt.spatial.to_featureclass(location=cps_fc_filt, overwrite=True)
 
 # run the function 
-cps_ab = fns.calc_abundance_lines(abundance_containers, [cps_fc_filt], PROJECT_ROOT)
+cps_ab = fns.calc_cov_cat(cov_cat_containers, [cps_fc_filt], kelp_geometry_type="line")
 cps_ab = cps_ab.drop('fc_name', axis=1)
 
 # combine 

@@ -1,6 +1,6 @@
 # MRC Kayak data synthesis for linear extent
 
-# 2026 update = complete, 2026-03-10
+# 2026 update = complete 2026-03-16
 
 # Copy of MRC kayak data was shared with DNR for Indicator updates - "AllYearsAllSurveys_DNRMaster_2025"
 # Treating data as presence only, because survey areas shift between years and we do not have each year's site boundaries
@@ -37,7 +37,7 @@ SCRATCH_WS = fns.config_scratch()
 # USER INPUT ----------------------------------------------------
 dataset_name = "MRC_Kayak"
 containers = os.path.join(PROJECT_ROOT, "LinearExtent.gdb\\kelp_containers_v2")
-abundance_containers = os.path.join(PROJECT_ROOT, "LinearExtent.gdb\\abundance_containers")
+cov_cat_containers = os.path.join(PROJECT_ROOT, "LinearExtent.gdb\\abundance_containers")
 kelp_data_path = os.path.join(
     PROJECT_ROOT,
     "kelp_data_sources\\mrc_kayak_data\\AllYearsAllSurveys_DNRMaster_2025.gdb\AllYearsAllSurveys_Master",
@@ -97,18 +97,18 @@ print("Dropping rows where presence = 0... treating data as presence only")
 presence = presence[presence["presence"] != 0]
 print(f"Number of rows: {len(presence)}")
 
-# calculate abundance --------------------------------------------------
-print("Calculating abundance...")
-abundance = fns.calc_abundance(abundance_containers, split_fcs, PROJECT_ROOT)
+# calculate coverage category --------------------------------------------------
+print("Calculating coverage category...")
+cov_cat = fns.calc_cov_cat(cov_cat_containers, split_fcs)
 
 # add year col
-abundance["year"] = abundance["fc_name"].str[-4:]
-abundance = abundance.drop(columns=["fc_name"])
-print("Abundance data: ")
-print(abundance.head())
+cov_cat["year"] = cov_cat["fc_name"].str[-4:]
+cov_cat = cov_cat.drop(columns=["fc_name"])
+print("Coverage category data: ")
+print(cov_cat.head())
 
 # compile and export --------------------------------------------------
-results = pd.merge(presence, abundance, how="left", on=["SITE_CODE", "year"])
+results = pd.merge(presence, cov_cat, how="left", on=["SITE_CODE", "year"])
 print("Compiled results:")
 print(results.head())
 
