@@ -8,7 +8,7 @@
 
 import os
 import pandas as pd
-from arcgis import GeoAccessor, GeoSeriesAccessor
+from arcgis import GeoAccessor, GeoSeriesAccessor # noqa: F401
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 print("Project working directory:")

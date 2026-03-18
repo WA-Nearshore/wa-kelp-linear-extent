@@ -14,7 +14,7 @@ import sys
 import os
 import arcpy
 import pandas as pd
-from arcgis.features import GeoAccessor, GeoSeriesAccessor # these are used to create sedfs
+from arcgis.features import GeoAccessor, GeoSeriesAccessor # noqa: F401 # these are used to create sedfs
 
 # project root is the folder within which the entire kelp_linear_extent module is located (2 levels up from this file)
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -22,7 +22,7 @@ print("Project working directory:")
 print(PROJECT_ROOT)
 sys.path.append(PROJECT_ROOT) # this lets the project function library be found as a module
 
-import kelp_linear_extent.fns as fns # project function library
+import kelp_linear_extent.fns as fns # noqa: E402 # project function library
 
 arcpy.env.overwriteOutput = True # overwrite outputs 
 
@@ -50,7 +50,8 @@ arcpy.analysis.SplitByAttributes(fc, SCRATCH_WS, ['year_'])
 arcpy.env.workspace = SCRATCH_WS
 split_fcs = arcpy.ListFeatureClasses("T*")
 print("Kayak data split into one feature class per year:")
-for f in split_fcs: print(f)
+for f in split_fcs: 
+    print(f)
 fns.reset_ws()
 
 # append file path

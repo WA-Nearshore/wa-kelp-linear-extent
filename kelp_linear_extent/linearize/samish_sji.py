@@ -1,5 +1,7 @@
 # Summarize Samish Indian Nation's kelp polygons from assorted years of aerial surveys to linear extent
 
+# 2026 update = FIX with new sum wthin and cov cat fns
+
 # files from K:\kelp\VScanopy\data\SJI\Samish_spatial_data_2021_delivery
 # an updated 2022 dataset from K:\kelp\VScanopy\data\SJI\sji_2022_mapping_project_materials
 # Created a modified survey boundary for 2016 onward based on conversations with Sophia and Todd
@@ -8,25 +10,29 @@
 # 2022 data was exported to a shapefile from sji_2022_mapping_project_materials\bed_delineation\2023_11_21_delivery_from_sophia\Data for Helen\Data for Helen\Kelp_Digitization_2006_to_2022.gdb\Samish_Digitized_Kelp_2022"
 # Into the 2021 deliverable folder, renamed to match the other .shps
 
+# set environment -------------------------------------------------------
 
-# set environment ---------------------------------------------------------
-import arcpy
-import arcpy.analysis
-import arcpy.conversion
-import pandas as pd
-import numpy as np
-import os
 import sys
-from arcgis.features import GeoAccessor, GeoSeriesAccessor
+import os
+import arcpy
+import pandas as pd
+from arcgis.features import GeoAccessor, GeoSeriesAccessor # these are used to create sedfs
 
-sys.path.append(os.getcwd())
+# project root is the folder within which the entire kelp_linear_extent module is located (2 levels up from this file)
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+print("Project working directory:")
+print(PROJECT_ROOT)
+sys.path.append(PROJECT_ROOT) # this lets the project function library be found as a module
 
-# import the project function library
-import fns
+import kelp_linear_extent.fns as fns # project function library
 
-arcpy.env.overwriteOutput = True
+arcpy.env.overwriteOutput = True # overwrite outputs 
 
+# set workspace to parent folder
 fns.reset_ws()
+
+# set up scratch workspace
+SCRATCH_WS = fns.config_scratch()
 
 # prep data ------------------------------------------------------------
 
