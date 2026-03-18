@@ -17,7 +17,7 @@ Project Structure:
     ├── kelp_data_compiled/ #(files not included in repo) outputs from synthesis of linearized data  
     ├── kelp_data_linear_outputs/ #(files not included in repo) outputs from linearize scripts for individual sources
     ├── kelp_data_sources/ #(files not included in repo) raw kelp spatial data
-    ├── kelp_linear_extent/  
+    ├── kelp_linear_extent_code/ # all code for analysis  
     |   ├── linearize/ #this folder contains analysis scripts for individual data sources 
     |   ├── compile_linear_data.py #this script compiles outputs from the linearize scripts  
     |   ├── fns.py #this script contains functions and utilities used in linearize scripts  
