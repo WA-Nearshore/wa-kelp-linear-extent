@@ -1,11 +1,10 @@
 
 # function library
 import os
-from pathlib import Path
 import arcpy
 import pandas as pd
 import numpy as np
-from arcgis.features import GeoAccessor, GeoSeriesAccessor 
+from arcgis.features import GeoAccessor, GeoSeriesAccessor # noqa: F401
 
 arcpy.env.overwriteOutput = True
 

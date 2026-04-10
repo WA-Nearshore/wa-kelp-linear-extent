@@ -21,7 +21,7 @@ print("Project working directory:")
 print(PROJECT_ROOT)
 sys.path.append(PROJECT_ROOT) # this lets the project function library be found as a module
 
-import kelp_linear_extent.fns as fns # noqa: E402 # project function library
+import kelp_linear_extent_code.fns as fns # noqa: E402 # project function library
 
 arcpy.env.overwriteOutput = True # overwrite outputs 
 

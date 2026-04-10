@@ -13,9 +13,12 @@
 /GpMessages
 /.ipynb_checkpoints
 /.pyHistory
-/LienarExtentRGraphs
+/LinearExtentRGraphs
 /LinearExtentWorking.gdb
 /kelp_data_synth_results
+/kelp_data_compiled
+/slides
+/figures
 /floating_kelp_linear_extent.gdb
 /linear_extent_lines_polygons.gdb
 /__pycache__

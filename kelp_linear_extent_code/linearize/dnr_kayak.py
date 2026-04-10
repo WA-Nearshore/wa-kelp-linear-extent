@@ -22,7 +22,7 @@ print("Project working directory:")
 print(PROJECT_ROOT)
 sys.path.append(PROJECT_ROOT) # this lets the project function library be found as a module
 
-import kelp_linear_extent.fns as fns # noqa: E402 # project function library
+import kelp_linear_extent_code.fns as fns # noqa: E402 # project function library
 
 arcpy.env.overwriteOutput = True # overwrite outputs 
 
@@ -126,4 +126,6 @@ os.makedirs(f"{PROJECT_ROOT}\\kelp_data_linear_outputs", exist_ok=True)
 out_results = os.path.join(PROJECT_ROOT, f"kelp_data_linear_outputs\\{dataset_name}_result.csv")
 results.to_csv(out_results)
 print(f"Saved as csv here: {out_results}")
+
+fns.clear_scratch()
  
