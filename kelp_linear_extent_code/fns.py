@@ -69,17 +69,35 @@ def sum_kelp_within(fc_list, containers, SCRATCH_WS = os.path.join(os.path.dirna
     # intialize list of output fcs
     sumwithin_fcs = []
 
+    # get container spatial reference, to check for mismatches
+    cont_sr = arcpy.Describe(containers).spatialReference
+
     # if each year/survey needs its own survey area: 
     if variable_survey_area:
+
         for kelp_fc, svy_fc in fc_list: 
+
+            print("Checking Spatial References...")
+            kelp_sr = arcpy.Describe(kelp_fc).spatialReference
+            svy_sr = arcpy.Describe(svy_fc).spatialReference
+
+            print("Spatial references:")
+            print(f"kelp = {kelp_sr.name}")
+            print(f"containers = {cont_sr.name}")
+            print(f"survey bnd = {svy_sr.name}")
+
+            if not kelp_sr.name == cont_sr.name == svy_sr.name:
+                print("WARNING: SPATIAL REFERENCES DO NOT MATCH. DO NOT PASS GO DO NOT COLLECT $200")
+
             print("Beginning sum within for: ")
             print(f"Kelp data: {kelp_fc}")
             print(f"Survey boundary: {svy_fc}")
 
             # clip containers to survey area footprint
             print("Clipping containers to survey boundary...")
-            containers_clip = os.path.join(SCRATCH_WS, "containers_clip")
+            containers_clip = "in_memory/containers_clip"
             arcpy.analysis.Clip(containers, svy_fc, containers_clip)
+            print(f"Output clipped containers: {containers_clip}")
             
             # get the describe object for the kelp feature class
             fc_desc = arcpy.Describe(kelp_fc)
@@ -106,6 +124,10 @@ def sum_kelp_within(fc_list, containers, SCRATCH_WS = os.path.join(os.path.dirna
             except Exception as e:
                 print(e.args[0])
                 break
+            
+            # delete the intermediate clipped container fc 
+            arcpy.management.Delete(containers_clip)
+            arcpy.management.ClearWorkspaceCache()
 
     # if survey area is constant across years, containers are clipped upstream in the linearizing script
     else:
@@ -113,6 +135,16 @@ def sum_kelp_within(fc_list, containers, SCRATCH_WS = os.path.join(os.path.dirna
 
             # get the describe object for the feature class
             fc_desc = arcpy.Describe(fc)
+
+            print("Checking Spatial References...")
+            kelp_sr = fc_desc.spatialReference
+
+            print("Spatial references:")
+            print(f"kelp = {kelp_sr.name}")
+            print(f"containers = {cont_sr.name}")
+
+            if not kelp_sr == cont_sr:
+                print("WARNING: SPATIAL REFERENCES DO NOT MATCH. DO NOT PASS GO DO NOT COLLECT $200")
 
             # Set the out path for each fc 
             out_fc = os.path.join(SCRATCH_WS, f"sum{fc_desc.name}".replace(" ",""))
@@ -185,6 +217,7 @@ def calc_cov_cat(cov_cat_containers, kelp_fcs, SCRATCH_WS = os.path.join(os.path
     * note, lines must be ONLY presence lines (filter out absence lines upstream)
     * **PROJECT_ROOT**: path to the parent folder 
     """
+
     #initial result sdf list 
     df_list = []
     
@@ -195,12 +228,18 @@ def calc_cov_cat(cov_cat_containers, kelp_fcs, SCRATCH_WS = os.path.join(os.path
         unit = "METERS"
         pres_col = "sum_Length_METERS"
 
-
     # summarize within --> do NOT clip cov cat containers to survey area, 
     for fc in kelp_fcs:
 
         # get the describe object for the feature class
         fc_desc = arcpy.Describe(fc)
+
+        # confirm spatial references match
+        cont_desc = arcpy.Describe(cov_cat_containers)
+        if not fc_desc.spatialReference.name == cont_desc.spatialReference.name: 
+            print("WARNING. SPATIAL REFERENCES OF INPUTS DO NOT MATCH")
+            print(f"Kelp sr = {fc_desc.spatialReference.name}")
+            print(f"Containers sr = {cont_desc.spatialReference.name}")
 
         # set the out path for the analyzed feature classes 
         out_fc = os.path.join(SCRATCH_WS, f"ab{fc_desc.name}")
@@ -213,11 +252,12 @@ def calc_cov_cat(cov_cat_containers, kelp_fcs, SCRATCH_WS = os.path.join(os.path
                 in_polygons = cov_cat_containers,
                 in_sum_features = fc,
                 out_feature_class = out_fc,
-                shape_unit = unit
+                shape_unit = unit,
+                sum_fields=[]
             )
             print(f"Result written to {out_fc}")
         except arcpy.ExecuteError:
-            arcpy.AddError(arcpy.GetMessages(2))
+            print(arcpy.GetMessages())
             break
         except Exception as e:
             print(e.args[0])

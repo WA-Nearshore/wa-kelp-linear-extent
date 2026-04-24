@@ -1,11 +1,10 @@
 # Summarize COSTR & AQRES data to kelp linear extent
 
 # Need to update for 2026 now that these datasets are combined in a single gdb
-# current version from "K:\kelp\projects\2025_COSTR_AQRES_1989_2024\data_download\WA_floating_kelp_coast_strait_reserves.gdb"
+# current version from "..\kelp\projects\2025_COSTR_AQRES_1989_2024\data_download\WA_floating_kelp_coast_strait_reserves.gdb"
 # accessed 2026-02-19
 
 # set up environment --------------------------------------
-
 
 import sys
 import os
@@ -19,30 +18,26 @@ print("Project working directory:")
 print(PROJECT_ROOT)
 sys.path.append(PROJECT_ROOT) # this lets the project function library be found as a module
 
-import kelp_linear_extent.fns as fns # project function library
+import kelp_linear_extent_code.fns as fns # project function library
 
 arcpy.env.overwriteOutput = True # overwrite outputs 
 
 # set workspace to parent folder
-fns.reset_ws(PROJECT_ROOT)
+fns.reset_ws()
 
-# set up scratch workspace
-SCRATCH_WS = os.path.join(PROJECT_ROOT, "scratch.gdb")
-print("Configuring scratch workspace...")
-if not arcpy.Exists(SCRATCH_WS):
-    arcpy.management.CreateFileGDB(PROJECT_ROOT, "scratch.gdb")
-    print(f"Created new gdb at {SCRATCH_WS}")
-else:
-    print(f"Scratch workspace already exists at {SCRATCH_WS}")
+# configure scratch
+fns.config_scratch()
+
+# USER INPUT ------------------------------------------------
+
+dataset_name = "WADNR_COSTR_AQRES"
+containers = os.path.join(PROJECT_ROOT, "LinearExtent.gdb", "kelp_containers_v2")
+kelp_data_path = os.path.join(PROJECT_ROOT, "kelp_data_sources\\kelp_canopy_aquatic_reserves_adjusted.gdb")
+abundance_containers = os.path.join(PROJECT_ROOT, "LinearExtent.gdb\\abundance_containers")
 
 # prep data ------------------------------------------------
 
-# containers
-containers = os.path.join(PROJECT_ROOT, "LinearExtent.gdb", "kelp_containers_v2")
 print(f"Using {containers} as container features")
-
-# set workspace to gdb with kelp data sources
-kelp_data_path = os.path.join(PROJECT_ROOT, "kelp_data_sources\\kelp_canopy_aquatic_reserves_adjusted.gdb")
 arcpy.env.workspace = kelp_data_path
 
 # list AQRES feature classes
@@ -101,7 +96,7 @@ print(presence.head())
 
 # calculate abundance ---------------------------------------
 
-abundance_containers = os.path.join(PROJECT_ROOT, "LinearExtent.gdb\\abundance_containers")
+
 abundance = fns.calc_abundance(abundance_containers, aqres_fcs)
 
 abundance["year"] = "20" + abundance["fc_name"].str[4:6]
