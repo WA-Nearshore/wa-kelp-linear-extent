@@ -39,8 +39,8 @@ SCRATCH_WS = fns.config_scratch()
 # USER INPUT ----------------------------------------------------------
 
 dataset_name = "Samish_AerialSurveys"
-containers = os.path.join(PROJECT_ROOT, "LinearExtent.gdb\\kelp_containers_v2")
-cov_cat_containers = os.path.join(PROJECT_ROOT, "LinearExtent.gdb\\abundance_containers")
+containers = os.path.join(PROJECT_ROOT, "LinearExtent.gdb\\lines_and_containers\\kelp_containers_v3")
+cov_cat_containers = os.path.join(PROJECT_ROOT, "LinearExtent.gdb\\lines_and_containers\\cov_cat_containers")
 kelp_data_path = os.path.join(PROJECT_ROOT,"kelp_data_sources\\Samish_spatial_data_2021_delivery")
 
 # prep data ------------------------------------------------------------
@@ -116,16 +116,9 @@ print(fc_list)
 
 # calculate presence -------------------------------------------------------
 print("Calculating presence...")
-fns.sum_kelp_within(fc_list, containers, variable_survey_area=True)
+pres_fcs = fns.calc_presence(fc_list, containers, variable_survey_area=True)
 
-# get list of summarize within output fcs
-arcpy.env.workspace = os.path.join(SCRATCH_WS)
-sumwithin_fcs = arcpy.ListFeatureClasses("sum*")
-
-sdf_list = fns.df_from_fc(sumwithin_fcs, dataset_name)
-
-fns.reset_ws()
-
+sdf_list = fns.df_from_fc(pres_fcs, dataset_name)
 print("This is the structure of the presence sdfs:")
 print(sdf_list[1].head())
 
