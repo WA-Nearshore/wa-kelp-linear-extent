@@ -217,10 +217,12 @@ def calc_cov_cat(cov_cat_containers, kelp_fcs, SCRATCH_WS = os.path.join(os.path
     * note, lines must be ONLY presence lines (filter out absence lines upstream)
     * **PROJECT_ROOT**: path to the parent folder 
     """
-
+    arcpy.env.overwriteOutput = True
+    
     #initial result sdf list 
     df_list = []
     
+
     if kelp_geometry_type == "polygon":
         unit = "HECTARES"
         pres_col = "sum_Area_HECTARES"
@@ -228,32 +230,33 @@ def calc_cov_cat(cov_cat_containers, kelp_fcs, SCRATCH_WS = os.path.join(os.path
         unit = "METERS"
         pres_col = "sum_Length_METERS"
 
+    # copy coverage category containers to scratch gdb
+    cov_cat_cont = os.path.join(SCRATCH_WS, "cov_cat_cont")
+    print("Copying coverage category containers to scratch...")
+    arcpy.management.CopyFeatures(cov_cat_containers, cov_cat_cont)
+
     # summarize within --> do NOT clip cov cat containers to survey area, 
     for fc in kelp_fcs:
 
         # get the describe object for the feature class
         fc_desc = arcpy.Describe(fc)
 
-        # confirm spatial references match
-        cont_desc = arcpy.Describe(cov_cat_containers)
-        if not fc_desc.spatialReference.name == cont_desc.spatialReference.name: 
-            print("WARNING. SPATIAL REFERENCES OF INPUTS DO NOT MATCH")
-            print(f"Kelp sr = {fc_desc.spatialReference.name}")
-            print(f"Containers sr = {cont_desc.spatialReference.name}")
-
+        # copy fc to scratch
+        print("Copying in features to scratch...")
+        in_fc = os.path.join(SCRATCH_WS, f"{fc_desc.name}").replace(" ", "")
+        arcpy.management.CopyFeatures(fc, in_fc)
         # set the out path for the analyzed feature classes 
-        out_fc = os.path.join(SCRATCH_WS, f"ab{fc_desc.name}")
+        out_fc = os.path.join(SCRATCH_WS, f"cc{fc_desc.name}".replace(" ",""))
 
         # run summarize within
         try: 
             print(f"Running Coverage Category SummarizeWithin for {fc_desc.name}...")
             print(f"Results will be written to {out_fc}")
             arcpy.analysis.SummarizeWithin(
-                in_polygons = cov_cat_containers,
-                in_sum_features = fc,
+                in_polygons = cov_cat_cont,
+                in_sum_features = in_fc,
                 out_feature_class = out_fc,
-                shape_unit = unit,
-                sum_fields=[]
+                shape_unit = unit
             )
             print(f"Result written to {out_fc}")
         except arcpy.ExecuteError:
@@ -299,8 +302,89 @@ def calc_cov_cat(cov_cat_containers, kelp_fcs, SCRATCH_WS = os.path.join(os.path
         print("Abundance result:")
         print(result.head())
 
-        # delete the feature class from memory
-        arcpy.management.Delete(out_fc)
+        # append result to df list
+        df_list.append(result)
+
+    cov_cat_results = pd.concat(df_list)
+    return cov_cat_results
+
+
+# tool for calculating coverage category of polygon kelp beds along line segments
+def calc_cov_cat_sj(cov_cat_containers, kelp_fcs, SCRATCH_WS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scratch.gdb")):
+    """
+    Calculates coverage category for polygon kelp presence features 
+    * **cov_cat_containers**: feature class with the subdivided containers
+    * **kelp_fcs**: list of feature classes with kelp presence polygons to be analyzed
+    * note, lines must be ONLY presence lines (filter out absence lines upstream)
+    * **PROJECT_ROOT**: path to the parent folder 
+    """
+    arcpy.env.overwriteOutput = True
+    
+    #initial result sdf list 
+    df_list = []
+
+
+    # summarize within --> do NOT clip cov cat containers to survey area, 
+    for fc in kelp_fcs:
+
+        # get the describe object for the feature class
+        fc_desc = arcpy.Describe(fc)
+
+        # set the out path for the analyzed feature classes 
+        out_fc = os.path.join(SCRATCH_WS, f"cc{fc_desc.name}".replace(" ",""))
+
+        # run summarize within
+        try: 
+            print(f"Running Coverage Category SummarizeWithin for {fc_desc.name}...")
+            print(f"Results will be written to {out_fc}")
+            arcpy.analysis.SpatialJoin(
+                target_features=cov_cat_containers,
+                join_features=fc,
+                out_feature_class=out_fc
+            )
+            print(f"Result written to {out_fc}")
+        except arcpy.ExecuteError:
+            print(arcpy.GetMessages())
+            break
+        except Exception as e:
+            print(e.args[0])
+            break
+
+        print("Converting to df...")
+        df = pd.DataFrame.spatial.from_featureclass(out_fc)
+
+        # calculate total_length for each SITE_CODE
+        df['total_length'] = df.groupby('SITE_CODE')['length_m'].transform('sum')
+
+        # calculate weight of each subdivided section based on original feature length
+        df['weight'] = df['length_m'] / df['total_length']
+
+        # calculate presence
+        df['presence'] = df['Join_Count'].apply(lambda x: 1 if x > 0 else 0)
+
+        # get weighted presence for each section
+        df['w_pres'] = df['weight'] * df['presence']
+
+        # sum weighted presence across site codes
+        result = (df.groupby('SITE_CODE')
+                .agg(sum_w_pres=('w_pres', 'sum'))
+                .reset_index())
+
+        # categorize cov cat based on weighted presence 
+        print("Calculating coverage category...")
+        result['coverage_cat'] = pd.cut(result['sum_w_pres'],
+                                    bins=[-float('inf'), 0, 0.25, 0.5, 0.75, float('inf')],
+                                    labels=[0, 1, 2, 3, 4])
+        
+        # keep only relevant columns
+        result = result[['SITE_CODE', 'coverage_cat']]
+        
+        # add a column with name of fc input. will need to be uniquely reformatted per data source to get year 
+        result['fc_name'] = str(fc_desc.name)
+
+        # view result
+        print("Abundance result:")
+        print(result.head())
 
         # append result to df list
         df_list.append(result)
