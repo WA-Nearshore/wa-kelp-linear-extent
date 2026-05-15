@@ -82,7 +82,7 @@ def calc_presence(fc_list, containers, SCRATCH_WS = os.path.join(os.path.dirname
             if not kelp_sr.name == cont_sr.name == svy_sr.name:
                 print("WARNING: SPATIAL REFERENCES DO NOT MATCH. DO NOT PASS GO DO NOT COLLECT $200")
 
-            print("Beginning sum within for: ")
+            print("Beginning presence calculation for: ")
             print(f"Kelp data: {kelp_fc}")
             print(f"Survey boundary: {svy_fc}")
 
@@ -108,7 +108,7 @@ def calc_presence(fc_list, containers, SCRATCH_WS = os.path.join(os.path.dirname
                     out_feature_class = out_fc
                 ) # save results in scratch gdb 
 
-                print("Summarize Within complete for " + fc_desc.name)
+                print("Presence analysis complete for " + fc_desc.name)
             except arcpy.ExecuteError: 
                 print(f"Failed to generate {out_fc}")
                 arcpy.AddError(arcpy.GetMessages())
@@ -142,7 +142,7 @@ def calc_presence(fc_list, containers, SCRATCH_WS = os.path.join(os.path.dirname
             out_fc = os.path.join(SCRATCH_WS, f"pres{fc_desc.name}".replace(" ",""))
             pres_fcs.append(out_fc)
 
-            print(f"Running sum within for {fc_desc.name}...")
+            print(f"Running presence analysis for {fc_desc.name}...")
             try:
                 # run spatial join
                 arcpy.analysis.SpatialJoin(
@@ -151,7 +151,7 @@ def calc_presence(fc_list, containers, SCRATCH_WS = os.path.join(os.path.dirname
                     out_feature_class = out_fc
                 ) # save results in scratch gdb 
 
-                print(f"Summarize Within complete for {fc_desc.name}")
+                print(f"Presence analysis complete for {fc_desc.name}")
             except arcpy.ExecuteError:
                 arcpy.AddError(arcpy.GetMessages())
                 break
@@ -180,11 +180,11 @@ def df_from_fc(in_features, source_name):
 
         sdf = pd.DataFrame.spatial.from_featureclass(feature) 
 
-        sdf = sdf.filter(['SITE_CODE', pres_col], axis = 1) #drop unneeded SHAPE cols
+        
         sdf['year'] = fc_desc.name[-4:]
         sdf['source'] = source_name
         sdf['presence'] = np.where(sdf[pres_col] > 0, 1, 0)
-        sdf.drop(pres_col, axis = 1)
+        sdf = sdf[['SITE_CODE', 'year', 'source', 'presence']] #retain only relevant cols
 
         sdf_list.append(sdf)
         print("Converted " + fc_desc.name + " to sdf and added to list")
@@ -217,7 +217,7 @@ def calc_cov_cat(cov_cat_containers, kelp_fcs, SCRATCH_WS = os.path.join(os.path
 
         # run summarize within
         try: 
-            print(f"Running Coverage Category SummarizeWithin for {fc_desc.name}...")
+            print(f"Running Coverage Category calculation for {fc_desc.name}...")
             print(f"Results will be written to {out_fc}")
             arcpy.analysis.SpatialJoin(
                 target_features=cov_cat_containers,
@@ -265,7 +265,7 @@ def calc_cov_cat(cov_cat_containers, kelp_fcs, SCRATCH_WS = os.path.join(os.path
         result['fc_name'] = str(fc_desc.name)
 
         # view result
-        print("Abundance result:")
+        print("Coverage category result preview:")
         print(result.head())
 
         # append result to df list
