@@ -35,7 +35,7 @@ SCRATCH_WS = fns.config_scratch()
 
 dataset_name = "PSRF_Elliott_Bay_Linear_Surveys"
 containers = os.path.join(PROJECT_ROOT, "LinearExtent.gdb", "kelp_containers_v2")
-cov_cat_containers = os.path.join(PROJECT_ROOT, "LinearExtent.gdb\\abundance_containers")
+cov_cat_containers = os.path.join(PROJECT_ROOT, "LinearExtent.gdb\\cov_cat_containers_over100m")
 kelp_data_path = os.path.join(PROJECT_ROOT, "kelp_data_sources\\PSRF_BulbCount_datashare.gdb") 
 
 # prep data -------------------------------------------------------------
@@ -70,11 +70,11 @@ for kelp, svy in fc_list:
 # calculate presence ---------------------------------------------------
 
 print("Calculating presence...")
-sumwithin_fcs = fns.sum_kelp_within(fc_list, containers, variable_survey_area=True, kelp_geometry_type="line")
+pres_fcs = fns.calc_presence(fc_list, containers, variable_survey_area=True)
 
 # convert to sdfs
 print("Converting results to data frames...")
-sdf_list = fns.df_from_fc(sumwithin_fcs, dataset_name, kelp_geometry_type="line")
+sdf_list = fns.df_from_fc(pres_fcs, dataset_name)
 
 print("This is the structure of the sdfs:")
 print(sdf_list[1].head())
@@ -87,13 +87,12 @@ print(presence.head())
 # calculate coverage category ------------------------------------------
 
 print("Calculating coverage category...")
-cov_cat = fns.calc_cov_cat(cov_cat_containers, kelp_fcs, kelp_geometry_type="line")
+cov_cat = fns.calc_cov_cat(cov_cat_containers, kelp_fcs)
 
 cov_cat['year'] = cov_cat['fc_name'].str[-4:]
 cov_cat = cov_cat.drop(columns=['fc_name'])
 print("Compiled coverage category results:")
 print(cov_cat.head())
-
 
 # combine and export --------------------------------------------------
 results = pd.merge(presence, cov_cat, how="left", on=["SITE_CODE", "year"])
