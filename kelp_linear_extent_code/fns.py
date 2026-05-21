@@ -206,7 +206,7 @@ def calc_cov_cat(cov_cat_containers, kelp_fcs, SCRATCH_WS = os.path.join(os.path
     df_list = []
 
 
-    # summarize within --> do NOT clip cov cat containers to survey area, 
+    # spatial join --> do NOT clip cov cat containers to survey area, 
     for fc in kelp_fcs:
 
         # get the describe object for the feature class
@@ -215,7 +215,7 @@ def calc_cov_cat(cov_cat_containers, kelp_fcs, SCRATCH_WS = os.path.join(os.path
         # set the out path for the analyzed feature classes 
         out_fc = os.path.join(SCRATCH_WS, f"cc{fc_desc.name}".replace(" ",""))
 
-        # run summarize within
+        # run the spatial join
         try: 
             print(f"Running Coverage Category calculation for {fc_desc.name}...")
             print(f"Results will be written to {out_fc}")
