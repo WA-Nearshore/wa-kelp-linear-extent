@@ -1,6 +1,8 @@
 # Reformat the CPS & SPS linear extent field survey data
 
-# 2026 code improvements = complete 2026-03-16 (no data changes, only script improvements)
+# 2026 code improvements = complete 2026-05-16 
+# - updated to new functions 
+# - no data changes
 
 # set environment -------------------------------------------------------
 
@@ -30,7 +32,7 @@ SCRATCH_WS = fns.config_scratch()
 
 dataset_name_sps = "WADNR_sps_boat_survey"
 dataset_name_cps = "WADNR_cps_boat_survey"
-cov_cat_containers = os.path.join(PROJECT_ROOT, "LinearExtent.gdb\\abundance_containers")
+cov_cat_containers = os.path.join(PROJECT_ROOT, "LinearExtent.gdb\\lines_and_containers\\cov_cat_containers")
 
 # cps data from K:\Kelp\2019_cps_field\spatial_data\bull_kelp_cps_2019.gdb
 cps_orig= os.path.join(PROJECT_ROOT,"kelp_data_sources\\bull_kelp_cps_2019.gdb\\bull_kelp_2019")
@@ -78,8 +80,7 @@ sps_df_filt.spatial.to_featureclass(location=sps_fc_filt, overwrite=True)
 
 # run the function 
 print("Calculating coverage category...")
-sps_ab = fns.calc_cov_cat(cov_cat_containers, [sps_fc_filt], kelp_geometry_type="line")
-sps_ab = sps_ab.drop('fc_name', axis=1)
+sps_ab = fns.calc_cov_cat(cov_cat_containers, [sps_fc_filt])
 print("Cov cat results: ")
 print(sps_ab.head())
 
@@ -125,7 +126,7 @@ cps_fc_filt = os.path.join(SCRATCH_WS, "cps_kelp_only")
 cps_df_filt.spatial.to_featureclass(location=cps_fc_filt, overwrite=True)
 
 # run the function 
-cps_ab = fns.calc_cov_cat(cov_cat_containers, [cps_fc_filt], kelp_geometry_type="line")
+cps_ab = fns.calc_cov_cat(cov_cat_containers, [cps_fc_filt])
 cps_ab = cps_ab.drop('fc_name', axis=1)
 
 # combine 
