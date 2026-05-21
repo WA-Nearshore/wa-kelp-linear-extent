@@ -1,6 +1,9 @@
 # Summarize WADNR/Suquamish CPS UAS baseline survey data for linear extent
 
-# 2026 updates = complete 2026-03-16 (no data changes, only script improvements)
+# 2026 updates = complete 2026-05-20
+# - no data changes
+# - updated functions
+# - updated containers
 
 # Kelp bed data all copied 2025-01-30
 # K:\kelp\projects\2023_Suquamish_CPS_mapping\data\uas_data\derived_results\Suquamish_UAS_survey_bed_extents.gdb
@@ -35,8 +38,8 @@ SCRATCH_WS = fns.config_scratch()
 # USER INPUT -----------------------------------------------------------
 
 dataset_name = "WADNR_Suquamish_CPS_UAS_surveys" # this will be appended to data records 
-containers = os.path.join(PROJECT_ROOT, "LinearExtent.gdb", "kelp_containers_v2")
-cov_cat_containers = os.path.join(PROJECT_ROOT, "LinearExtent.gdb\\abundance_containers")
+containers = os.path.join(PROJECT_ROOT, "LinearExtent.gdb\\lines_and_containers\\kelp_containers_v3")
+cov_cat_containers = os.path.join(PROJECT_ROOT, "LinearExtent.gdb\\lines_and_containers\\cov_cat_containers")
 kelp_data_path = os.path.join(PROJECT_ROOT, "kelp_data_sources\\Suquamish_UAS_survey_bed_extents.gdb")
 
 # prep data ---------------------------------------------------
@@ -79,10 +82,10 @@ for kelp, svy in fc_list:
 # calculate presence --------------------------------------------------
 
 print("Calculating presence...")
-sumwithin_fcs = fns.sum_kelp_within(fc_list, containers, variable_survey_area=True)
+pres_fcs = fns.calc_presence(fc_list, containers, variable_survey_area=True)
 
 # convert to sdfs
-sdf_list = fns.df_from_fc(sumwithin_fcs, dataset_name)
+sdf_list = fns.df_from_fc(pres_fcs, dataset_name)
 
 print("This is the structure of the sdfs:")
 print(sdf_list[1].head())
