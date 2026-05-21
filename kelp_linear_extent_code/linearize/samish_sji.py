@@ -1,6 +1,8 @@
 # Summarize Samish Indian Nation's kelp polygons from assorted years of aerial surveys to linear extent
 
-# 2026 update = complete, 2026-05-14. 
+# 2026 update = complete, 2026-05-14
+# - update to new functions 
+# - add data through field year 2024 
 
 # files from ...kelp\VScanopy\data\SJI\Samish_spatial_data_2021_delivery
 # an updated 2022 dataset from ...kelp\VScanopy\data\SJI\sji_2022_mapping_project_materials
