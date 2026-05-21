@@ -135,7 +135,7 @@ def calc_presence(fc_list, containers, SCRATCH_WS = os.path.join(os.path.dirname
             print(f"kelp = {kelp_sr.name}")
             print(f"containers = {cont_sr.name}")
 
-            if not kelp_sr == cont_sr:
+            if not kelp_sr.name == cont_sr.name:
                 print("WARNING: SPATIAL REFERENCES DO NOT MATCH. DO NOT PASS GO DO NOT COLLECT $200")
 
             # Set the out path for each fc 
