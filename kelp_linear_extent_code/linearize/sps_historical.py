@@ -2,7 +2,8 @@
 # Data source = "K:\kelp\projects\historical_comparison_sps_2018\spatial_data\final_gdb\bull_kelp_sps_1878_2017.gdb"
 # Tabular version of this data is also available at https://doi.org/10.1371/journal.pone.0229703
 
-# 2026 code improvements = complete 2026-03-11 (no change to data or analysis)
+# 2026 code improvements = complete 2026-05-20 
+# - update to improved line geometry
 
 # set up env ----------------------------------------
 
@@ -14,13 +15,13 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(_
 print("Project working directory:")
 print(PROJECT_ROOT)
 
-# load data --------------------------------------------
+# USER INPUTS --------------------------------------------
 
 dataset_name = "Berry_et_al_2021"
 kelp_obs = os.path.join(PROJECT_ROOT, "kelp_data_sources\\bull_kelp_sps_1878_2017.gdb\\kelp_all_obs")
 kelp_df = pd.DataFrame.spatial.from_table(kelp_obs)
 
-lines_fc = os.path.join(PROJECT_ROOT, "LinearExtent.gdb\\all_lines_clean_v2")
+lines_fc = os.path.join(PROJECT_ROOT, "LinearExtent.gdb\\lines_and_containers\\all_lines_clean_v3")
 lines_df = pd.DataFrame.spatial.from_featureclass(lines_fc)
 
 print("")
