@@ -146,8 +146,8 @@ def calc_presence(fc_list, containers, SCRATCH_WS = os.path.join(os.path.dirname
             try:
                 # run spatial join
                 arcpy.analysis.SpatialJoin(
-                    target_features = containers_clip,
-                    join_features = kelp_fc,
+                    target_features = containers,
+                    join_features = fc,
                     out_feature_class = out_fc
                 ) # save results in scratch gdb 
 
