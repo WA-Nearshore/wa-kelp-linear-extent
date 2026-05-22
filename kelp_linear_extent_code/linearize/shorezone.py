@@ -189,3 +189,5 @@ os.makedirs(f"{PROJECT_ROOT}\\kelp_data_linear_outputs", exist_ok=True)
 out_results = os.path.join(PROJECT_ROOT, f"kelp_data_linear_outputs\\{dataset_name}_result.csv")
 result.to_csv(out_results)
 print(f"Saved as csv here: {out_results}")
+
+fns.clear_scratch()
