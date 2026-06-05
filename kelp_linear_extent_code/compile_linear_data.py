@@ -19,7 +19,7 @@ arcpy.env.overwriteOutput = True
 synth_folder = Path(PROJECT_ROOT) / "kelp_data_linear_outputs"
 
 # linear extent fc
-lines = os.path.join(PROJECT_ROOT, "LinearExtent.gdb//all_lines_clean_v2")
+lines = os.path.join(PROJECT_ROOT, "LinearExtent.gdb//lines_and_containers//all_lines_clean_v3")
 
 # metadata
 most_rec_meta = os.path.join(PROJECT_ROOT, "kelp_reference//linear_extent_most_recent_v2.xml")
@@ -95,10 +95,6 @@ def combine_results(synth_dfs, OUT_PATH):
 
     # drop extra column
     all_synth = all_synth.drop(["Unnamed: 0"], axis=1)
-
-    # drop sum area hectares and sum length meters
-    all_synth = all_synth.drop(["sum_Area_HECTARES"], axis=1)
-    all_synth = all_synth.drop(["sum_Length_METERS"], axis=1)
 
     # drop rows where source is null
     all_synth = all_synth.dropna(subset=["source"], axis=0)
