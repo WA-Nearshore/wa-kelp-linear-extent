@@ -81,6 +81,7 @@ sps_df_filt.spatial.to_featureclass(location=sps_fc_filt, overwrite=True)
 # run the function 
 print("Calculating coverage category...")
 sps_ab = fns.calc_cov_cat(cov_cat_containers, [sps_fc_filt])
+sps_ab = sps_ab.drop("fc_name", axis=1)
 print("Cov cat results: ")
 print(sps_ab.head())
 
