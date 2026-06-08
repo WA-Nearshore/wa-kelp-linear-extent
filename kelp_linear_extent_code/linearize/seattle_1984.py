@@ -1,7 +1,7 @@
 # 1984 data analysis
 # data from K:\kelp\projects\2024_westseattle_magnolia_1984_imagery\WestSeattleMagnolia1984_final.gdb
 
-# 2026 update (no data update, just script improvement) = complete, 2026-03-16
+# 2026 update (no data update, just script improvement) = complete, 2026-05-20
 
 # set environment -------------------------------------------------------
 
@@ -30,7 +30,7 @@ SCRATCH_WS = fns.config_scratch()
 # USER INPUT -----------------------------------------------------------
 
 dataset_name = "WADNR_1984_Seattle_Imagery" # this will be appended to data records 
-cov_cat_containers = os.path.join(PROJECT_ROOT, "LinearExtent.gdb\\abundance_containers")
+cov_cat_containers = os.path.join(PROJECT_ROOT, "LinearExtent.gdb\\lines_and_containers\\cov_cat_containers")
 fc = os.path.join(PROJECT_ROOT, "kelp_data_sources\\WestSeattleMagnolia1984\\WestSeattleMagnolia1984_final.gdb\\bull_kelp_1984_edits_reviewed")
 
 # prep data ------------------------------------------------------------
@@ -71,7 +71,7 @@ df_filt.spatial.to_featureclass(location=fc_filt, overwrite=True)
 
 # run the function
 print("Calculating coverage category...")
-cov_cat = fns.calc_cov_cat(cov_cat_containers, [fc_filt], kelp_geometry_type="line")
+cov_cat = fns.calc_cov_cat(cov_cat_containers, [fc_filt])
 cov_cat = cov_cat.drop("fc_name", axis=1)
 print("Abundance results: ")
 print(cov_cat.head())

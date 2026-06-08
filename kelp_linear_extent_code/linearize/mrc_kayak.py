@@ -1,6 +1,8 @@
 # MRC Kayak data synthesis for linear extent
 
-# 2026 update = complete 2026-03-16
+# 2026 update = complete 2026-05-20
+# - data updated through field year 2025 
+# - functions updated 
 
 # Copy of MRC kayak data was shared with DNR for Indicator updates - "AllYearsAllSurveys_DNRMaster_2025"
 # Treating data as presence only, because survey areas shift between years and we do not have each year's site boundaries
@@ -28,16 +30,13 @@ import kelp_linear_extent_code.fns as fns # noqa: E402 # project function librar
 
 arcpy.env.overwriteOutput = True # overwrite outputs 
 
-# set workspace to parent folder 
-fns.reset_ws()
-
 # set up scratch workspace
 SCRATCH_WS = fns.config_scratch()
 
 # USER INPUT ----------------------------------------------------
 dataset_name = "MRC_Kayak"
-containers = os.path.join(PROJECT_ROOT, "LinearExtent.gdb\\kelp_containers_v2")
-cov_cat_containers = os.path.join(PROJECT_ROOT, "LinearExtent.gdb\\abundance_containers")
+containers = os.path.join(PROJECT_ROOT, "LinearExtent.gdb\\lines_and_containers\\kelp_containers_v3")
+cov_cat_containers = os.path.join(PROJECT_ROOT, "LinearExtent.gdb\\lines_and_containers\\cov_cat_containers")
 kelp_data_path = os.path.join(
     PROJECT_ROOT,
     "kelp_data_sources\\mrc_kayak_data\\AllYearsAllSurveys_DNRMaster_2025.gdb\AllYearsAllSurveys_Master",
@@ -80,14 +79,14 @@ fns.reset_ws()
 
 # calculate presence ---------------------------------------------------
 print("Calculating presence....")
-sumwithin_fcs = fns.sum_kelp_within(split_fcs, containers)
-print(f"Out fcs: {sumwithin_fcs}")
+pres_fcs = fns.calc_presence(split_fcs, containers)
+print(f"Out fcs: {pres_fcs}")
 
 fns.reset_ws()
 
 # convert to table
 print("Converting results to dataframes...")
-sdf_list = fns.df_from_fc(sumwithin_fcs, dataset_name)
+sdf_list = fns.df_from_fc(pres_fcs, dataset_name)
 
 # compile to one df
 presence = pd.concat(sdf_list)

@@ -50,24 +50,17 @@ def clear_scratch(SCRATCH_WS = os.path.join(os.path.dirname(os.path.dirname(os.p
 
 # main tools ------------------------------------------------------------------------------------
 # function to calculate presence
-def sum_kelp_within(fc_list, containers, SCRATCH_WS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scratch.gdb"), 
-                    variable_survey_area=False, kelp_geometry_type="polygon"): 
+def calc_presence(fc_list, containers, SCRATCH_WS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scratch.gdb"), 
+                    variable_survey_area=False): 
     """
     * **fc_list**: list of feature class of kelp beds OR paired list of kelp feature classes, kelp survey area if variable_survey_area=True
     * **containers**: for summarize within ALREADY CLIPPED TO SURVEY EXTENT if variable_survey_area=False
-    * **SCRATCH_WS**: workspace for outputting sumwithin results; defaults to path from config_scratch
+    * **SCRATCH_WS**: workspace for outputting spatial join results; defaults to path from config_scratch
     * **variable_survey_area**: defaults to FALSE if the same area was surveyed every year. Change to TRUE if any years had different survey area
-    * **kelp_geometry_type**: "polygon" [default] when kelp presence is polygons or "line" if kelp presence is lines
     """
-    if kelp_geometry_type == "polygon":
-        unit = "HECTARES"
-    elif kelp_geometry_type == "line":
-        unit = "METERS"
-    else:
-        raise ValueError("kelp_geometry_type must be line or polygon")
 
     # intialize list of output fcs
-    sumwithin_fcs = []
+    pres_fcs = []
 
     # get container spatial reference, to check for mismatches
     cont_sr = arcpy.Describe(containers).spatialReference
@@ -89,7 +82,7 @@ def sum_kelp_within(fc_list, containers, SCRATCH_WS = os.path.join(os.path.dirna
             if not kelp_sr.name == cont_sr.name == svy_sr.name:
                 print("WARNING: SPATIAL REFERENCES DO NOT MATCH. DO NOT PASS GO DO NOT COLLECT $200")
 
-            print("Beginning sum within for: ")
+            print("Beginning presence calculation for: ")
             print(f"Kelp data: {kelp_fc}")
             print(f"Survey boundary: {svy_fc}")
 
@@ -103,20 +96,19 @@ def sum_kelp_within(fc_list, containers, SCRATCH_WS = os.path.join(os.path.dirna
             fc_desc = arcpy.Describe(kelp_fc)
 
             # set the out path for each fc 
-            out_fc = os.path.join(SCRATCH_WS, f"sum{fc_desc.name}".replace(" ",""))
-            sumwithin_fcs.append(out_fc)
+            out_fc = os.path.join(SCRATCH_WS, f"pres{fc_desc.name}".replace(" ",""))
+            pres_fcs.append(out_fc)
 
-            print(f"Running sum within for {fc_desc.name}...")
+            print(f"Running spatial join for {fc_desc.name}...")
             try:
                 # run summarize within
-                arcpy.analysis.SummarizeWithin(
-                    in_polygons = containers_clip,
-                    in_sum_features = kelp_fc,
-                    out_feature_class = out_fc, 
-                    shape_unit=unit
+                arcpy.analysis.SpatialJoin(
+                    target_features = containers_clip,
+                    join_features = kelp_fc,
+                    out_feature_class = out_fc
                 ) # save results in scratch gdb 
 
-                print("Summarize Within complete for " + fc_desc.name)
+                print("Presence analysis complete for " + fc_desc.name)
             except arcpy.ExecuteError: 
                 print(f"Failed to generate {out_fc}")
                 arcpy.AddError(arcpy.GetMessages())
@@ -143,24 +135,23 @@ def sum_kelp_within(fc_list, containers, SCRATCH_WS = os.path.join(os.path.dirna
             print(f"kelp = {kelp_sr.name}")
             print(f"containers = {cont_sr.name}")
 
-            if not kelp_sr == cont_sr:
+            if not kelp_sr.name == cont_sr.name:
                 print("WARNING: SPATIAL REFERENCES DO NOT MATCH. DO NOT PASS GO DO NOT COLLECT $200")
 
             # Set the out path for each fc 
-            out_fc = os.path.join(SCRATCH_WS, f"sum{fc_desc.name}".replace(" ",""))
-            sumwithin_fcs.append(out_fc)
+            out_fc = os.path.join(SCRATCH_WS, f"pres{fc_desc.name}".replace(" ",""))
+            pres_fcs.append(out_fc)
 
-            print(f"Running sum within for {fc_desc.name}...")
+            print(f"Running presence analysis for {fc_desc.name}...")
             try:
-                # run summarize within
-                arcpy.analysis.SummarizeWithin(
-                    in_polygons = containers,
-                    in_sum_features = fc,
-                    out_feature_class = out_fc,
-                    shape_unit = unit
-                )
+                # run spatial join
+                arcpy.analysis.SpatialJoin(
+                    target_features = containers,
+                    join_features = fc,
+                    out_feature_class = out_fc
+                ) # save results in scratch gdb 
 
-                print(f"Summarize Within complete for {fc_desc.name}")
+                print(f"Presence analysis complete for {fc_desc.name}")
             except arcpy.ExecuteError:
                 arcpy.AddError(arcpy.GetMessages())
                 break
@@ -169,25 +160,18 @@ def sum_kelp_within(fc_list, containers, SCRATCH_WS = os.path.join(os.path.dirna
                 break
 
     # return list of resulting feature classes        
-    return sumwithin_fcs
+    return pres_fcs
                     
 # feature class to dataframe
-def df_from_fc(in_features, source_name, kelp_geometry_type="polygon"):
+def df_from_fc(in_features, source_name):
 
     """
     converts list of features into a list of formatted dataframes
     * **in_features**: list of feature classes to convert to dataframes 
     * **source_name**: string to be used as source name in table
-    * **kelp_geometry_type**: "polygon" [default] when kelp presence is polygons or "line" if kelp presence is lines
     * note: input features MUST have year as last 4 characters of name for this to work 
     """
-    if kelp_geometry_type == "polygon":
-        pres_col = "sum_Area_HECTARES"
-    elif kelp_geometry_type == "line":
-        pres_col = "sum_Length_METERS"
-    else:
-        raise ValueError("kelp_geometry_type must be line or polygon")
-
+    pres_col = "Join_Count"
     # if each year/survey needs its own survey area: 
     sdf_list = []
     for feature in in_features:
@@ -196,10 +180,11 @@ def df_from_fc(in_features, source_name, kelp_geometry_type="polygon"):
 
         sdf = pd.DataFrame.spatial.from_featureclass(feature) 
 
-        sdf = sdf.filter(['SITE_CODE', pres_col], axis = 1) #drop unneeded SHAPE cols
+        
         sdf['year'] = fc_desc.name[-4:]
         sdf['source'] = source_name
         sdf['presence'] = np.where(sdf[pres_col] > 0, 1, 0)
+        sdf = sdf[['SITE_CODE', 'year', 'source', 'presence']] #retain only relevant cols
 
         sdf_list.append(sdf)
         print("Converted " + fc_desc.name + " to sdf and added to list")
@@ -207,53 +192,37 @@ def df_from_fc(in_features, source_name, kelp_geometry_type="polygon"):
     return sdf_list    
 
 # tool for calculating coverage category of polygon kelp beds along line segments
-def calc_cov_cat(cov_cat_containers, kelp_fcs, SCRATCH_WS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scratch.gdb"), 
-                                                                         kelp_geometry_type = "polygon"):
+def calc_cov_cat(cov_cat_containers, kelp_fcs, SCRATCH_WS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scratch.gdb")):
     """
     Calculates coverage category for polygon kelp presence features 
     * **cov_cat_containers**: feature class with the subdivided containers
     * **kelp_fcs**: list of feature classes with kelp presence polygons to be analyzed
-    * **kelp_geometry_type**: "polygon" [default] when kelp presence is polygons or "line" if kelp presence is lines
     * note, lines must be ONLY presence lines (filter out absence lines upstream)
     * **PROJECT_ROOT**: path to the parent folder 
     """
-
+    arcpy.env.overwriteOutput = True
+    
     #initial result sdf list 
     df_list = []
-    
-    if kelp_geometry_type == "polygon":
-        unit = "HECTARES"
-        pres_col = "sum_Area_HECTARES"
-    elif kelp_geometry_type == "line":
-        unit = "METERS"
-        pres_col = "sum_Length_METERS"
 
-    # summarize within --> do NOT clip cov cat containers to survey area, 
+
+    # spatial join --> do NOT clip cov cat containers to survey area, 
     for fc in kelp_fcs:
 
         # get the describe object for the feature class
         fc_desc = arcpy.Describe(fc)
 
-        # confirm spatial references match
-        cont_desc = arcpy.Describe(cov_cat_containers)
-        if not fc_desc.spatialReference.name == cont_desc.spatialReference.name: 
-            print("WARNING. SPATIAL REFERENCES OF INPUTS DO NOT MATCH")
-            print(f"Kelp sr = {fc_desc.spatialReference.name}")
-            print(f"Containers sr = {cont_desc.spatialReference.name}")
-
         # set the out path for the analyzed feature classes 
-        out_fc = os.path.join(SCRATCH_WS, f"ab{fc_desc.name}")
+        out_fc = os.path.join(SCRATCH_WS, f"cc{fc_desc.name}".replace(" ",""))
 
-        # run summarize within
+        # run the spatial join
         try: 
-            print(f"Running Coverage Category SummarizeWithin for {fc_desc.name}...")
+            print(f"Running Coverage Category calculation for {fc_desc.name}...")
             print(f"Results will be written to {out_fc}")
-            arcpy.analysis.SummarizeWithin(
-                in_polygons = cov_cat_containers,
-                in_sum_features = fc,
-                out_feature_class = out_fc,
-                shape_unit = unit,
-                sum_fields=[]
+            arcpy.analysis.SpatialJoin(
+                target_features=cov_cat_containers,
+                join_features=fc,
+                out_feature_class=out_fc
             )
             print(f"Result written to {out_fc}")
         except arcpy.ExecuteError:
@@ -273,7 +242,7 @@ def calc_cov_cat(cov_cat_containers, kelp_fcs, SCRATCH_WS = os.path.join(os.path
         df['weight'] = df['length_m'] / df['total_length']
 
         # calculate presence
-        df['presence'] = df[pres_col].apply(lambda x: 1 if x > 0 else 0)
+        df['presence'] = df['Join_Count'].apply(lambda x: 1 if x > 0 else 0)
 
         # get weighted presence for each section
         df['w_pres'] = df['weight'] * df['presence']
@@ -296,11 +265,8 @@ def calc_cov_cat(cov_cat_containers, kelp_fcs, SCRATCH_WS = os.path.join(os.path
         result['fc_name'] = str(fc_desc.name)
 
         # view result
-        print("Abundance result:")
+        print("Coverage category result preview:")
         print(result.head())
-
-        # delete the feature class from memory
-        arcpy.management.Delete(out_fc)
 
         # append result to df list
         df_list.append(result)

@@ -1,8 +1,11 @@
 # Linearize DNR kelp kayak survey data
 
-# 2026 update = complete, 2026-03-16
+# 2026 update = complete, 2026-05-20 
+# - Swap to containers and cov cat containers w/ improved geometry
+# - Updated functions 
+# - Updated data through field year 2025
 
-# Data copied from K:\kelp\bull_kelp_kayak\2024\data_processing\gdb\DNR_bull_kelp_kayak_2025.gdb on 2026-01-02
+# Data copied from ...kelp\bull_kelp_kayak\2024\data_processing\gdb\DNR_bull_kelp_kayak_2025.gdb on 2026-01-02
 
 # This dataset is a little funky in that there are small 'absence' polygons at sites where there was an annual survey to confirm there was no kelp 
 # Different sites surveyed each year --> if there is no absence polygon, it wasn't surveyed
@@ -35,8 +38,8 @@ SCRATCH_WS = fns.config_scratch()
 # USER INPUT -----------------------------------------------------------
 
 dataset_name = "WADNR_Kayak" # this will be appended to data records 
-containers = os.path.join(PROJECT_ROOT, "LinearExtent.gdb", "kelp_containers_v2")
-cov_cat_containers = os.path.join(PROJECT_ROOT, "LinearExtent.gdb\\abundance_containers")
+containers = os.path.join(PROJECT_ROOT, "LinearExtent.gdb\\lines_and_containers\\kelp_containers_v3")
+cov_cat_containers = os.path.join(PROJECT_ROOT, "LinearExtent.gdb\\lines_and_containers\\cov_cat_containers")
 kelp_data_path = os.path.join(PROJECT_ROOT, "kelp_data_sources\\DNR_bull_kelp_kayak_2025.gdb") 
 
 # prep data ------------------------------------------------------------
@@ -69,6 +72,14 @@ arcpy.analysis.SpatialJoin(site_bnd, fc, site_bnd_join, "JOIN_ONE_TO_MANY")
 print(arcpy.GetMessages())
 
 # split by year, writing into data source gdb to avoid naming confusions since name is T* for split ops
+# first clear out split fcs in case these already exist
+arcpy.env.workspace = kelp_data_path
+site_bnd_old = arcpy.ListFeatureClasses("T*")
+for fc in site_bnd_old: 
+    print(f"Deleting old site boundary: {fc}")
+    arcpy.management.Delete(fc)
+fns.reset_ws()
+
 arcpy.analysis.SplitByAttributes(site_bnd_join, kelp_data_path, ['year_'])
 arcpy.env.workspace = kelp_data_path
 site_bnd_split = arcpy.ListFeatureClasses("T*")
@@ -94,12 +105,12 @@ for kelp, svy in fc_list:
 
 # calculate presence ---------------------------------------
 print("Calculating presence...")
-sumwithin_fcs = fns.sum_kelp_within(fc_list, containers, variable_survey_area=True)
-print(f"Out fcs: {sumwithin_fcs}")
+pres_fcs = fns.calc_presence(fc_list, containers, variable_survey_area=True)
+print(f"Out fcs: {pres_fcs}")
 
 # convert to dfs
 print("Converting to sdfs...")
-sdf_list = fns.df_from_fc(sumwithin_fcs, dataset_name)
+sdf_list = fns.df_from_fc(pres_fcs, dataset_name)
 
 print("This is the structure of the sdfs:")
 print(sdf_list[1].head())

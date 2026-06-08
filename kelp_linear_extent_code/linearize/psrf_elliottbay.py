@@ -1,5 +1,5 @@
 # PSRF / Port of Seattle Elliott Bay Linear Extent Surveys
-# Last Update: 2026-03-16
+# Last Update: 2026-05-15
 
 # Manual pre-processing:
 # -- Several years projected from WGS84 to NAD83 Harn WA St Plane S (US Ft)
@@ -34,8 +34,8 @@ SCRATCH_WS = fns.config_scratch()
 # USER INPUT -----------------------------------------------------------
 
 dataset_name = "PSRF_Elliott_Bay_Linear_Surveys"
-containers = os.path.join(PROJECT_ROOT, "LinearExtent.gdb", "kelp_containers_v2")
-cov_cat_containers = os.path.join(PROJECT_ROOT, "LinearExtent.gdb\\abundance_containers")
+containers = os.path.join(PROJECT_ROOT, "LinearExtent.gdb\\lines_and_containers\\kelp_containers_v3")
+cov_cat_containers = os.path.join(PROJECT_ROOT, "LinearExtent.gdb\\lines_and_containers\\cov_cat_containers")
 kelp_data_path = os.path.join(PROJECT_ROOT, "kelp_data_sources\\PSRF_BulbCount_datashare.gdb") 
 
 # prep data -------------------------------------------------------------
@@ -70,11 +70,11 @@ for kelp, svy in fc_list:
 # calculate presence ---------------------------------------------------
 
 print("Calculating presence...")
-sumwithin_fcs = fns.sum_kelp_within(fc_list, containers, variable_survey_area=True, kelp_geometry_type="line")
+pres_fcs = fns.calc_presence(fc_list, containers, variable_survey_area=True)
 
 # convert to sdfs
 print("Converting results to data frames...")
-sdf_list = fns.df_from_fc(sumwithin_fcs, dataset_name, kelp_geometry_type="line")
+sdf_list = fns.df_from_fc(pres_fcs, dataset_name)
 
 print("This is the structure of the sdfs:")
 print(sdf_list[1].head())
@@ -87,13 +87,12 @@ print(presence.head())
 # calculate coverage category ------------------------------------------
 
 print("Calculating coverage category...")
-cov_cat = fns.calc_cov_cat(cov_cat_containers, kelp_fcs, kelp_geometry_type="line")
+cov_cat = fns.calc_cov_cat(cov_cat_containers, kelp_fcs)
 
 cov_cat['year'] = cov_cat['fc_name'].str[-4:]
 cov_cat = cov_cat.drop(columns=['fc_name'])
 print("Compiled coverage category results:")
 print(cov_cat.head())
-
 
 # combine and export --------------------------------------------------
 results = pd.merge(presence, cov_cat, how="left", on=["SITE_CODE", "year"])

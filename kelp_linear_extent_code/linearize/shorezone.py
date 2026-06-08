@@ -1,6 +1,8 @@
 # ShoreZone data synth
 
-# 2026 script improvements = complete 2026-03-16, no data changes
+# 2026 script improvements = complete 2026-05-20
+# - no data changes
+# - updated to new functions
 
 # Data downloaded 2024-07-30 from: 
 # 20240730 https://fortress.wa.gov/dnr/adminsa/gisdata/datadownload/state_DNR_ShoreZone.zip
@@ -35,12 +37,10 @@ SCRATCH_WS = fns.config_scratch()
 # USER INPUT -----------------------------------------------------------
 
 dataset_name = "WADNR_ShoreZone"
-containers = os.path.join(PROJECT_ROOT, "LinearExtent.gdb\\kelp_containers_v2")
-cov_cat_containers = os.path.join(PROJECT_ROOT, "LinearExtent.gdb\\abundance_containers")
-
+containers = os.path.join(PROJECT_ROOT, "LinearExtent.gdb\\lines_and_containers\\kelp_containers_v3")
+cov_cat_containers = os.path.join(PROJECT_ROOT, "LinearExtent.gdb\\lines_and_containers\\cov_cat_containers")
 # Set path to kelp data
 kelp_lines = os.path.join(PROJECT_ROOT, "kelp_data_sources\\state_DNR_ShoreZone\\shorezone_themes.gdb\\fkelplin")
-
 # set path to svy lines 
 svy_lines = os.path.join(PROJECT_ROOT, "kelp_data_sources\\state_DNR_ShoreZone\\shorezone.gdb\\szline")
 # Just need VIDEO_DATE field from this fc to get the year 
@@ -147,9 +147,9 @@ print(site_year_max.info())
 
 # calculate presence --------------------------------------------
 
-sumwithin_kelp = fns.sum_kelp_within([buff_kelp_only], containers) # even though the base data is lines, the kelp data is now polygons (buffered)
+pres_fcs = fns.calc_presence([buff_kelp_only], containers) # even though the base data is lines, the kelp data is now polygons (buffered)
 
-presence = fns.df_from_fc(sumwithin_kelp, dataset_name)
+presence = fns.df_from_fc(pres_fcs, dataset_name)
 presence = pd.concat(presence)
 print("Presence result:")
 print(presence.head())
@@ -157,10 +157,11 @@ print(presence.info())
 
 # calculate coverage category -----------------------------------------
 
-cov_cat = fns.calc_cov_cat(cov_cat_containers, [buff_kelp_only]) # even though the base data is lines, the kelp data is now polygons (buffered)
+cov_cat = fns.calc_cov_cat(cov_cat_containers, [buff_kelp_only]) 
 print("Coverage category result:")
 print(cov_cat.head())
 print(cov_cat.info())
+
 # compile and export ---------------------------------------
 
 print("Compiling presence and coverage category results...")
@@ -188,3 +189,5 @@ os.makedirs(f"{PROJECT_ROOT}\\kelp_data_linear_outputs", exist_ok=True)
 out_results = os.path.join(PROJECT_ROOT, f"kelp_data_linear_outputs\\{dataset_name}_result.csv")
 result.to_csv(out_results)
 print(f"Saved as csv here: {out_results}")
+
+fns.clear_scratch()

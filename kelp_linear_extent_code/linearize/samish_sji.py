@@ -1,6 +1,8 @@
 # Summarize Samish Indian Nation's kelp polygons from assorted years of aerial surveys to linear extent
 
-# 2026 update = currently failing 100014 at sum within kelp_2022. No Idea what gives. FIX SPATIAL REFERNECES 
+# 2026 update = complete, 2026-05-14
+# - update to new functions 
+# - add data through field year 2024 
 
 # files from ...kelp\VScanopy\data\SJI\Samish_spatial_data_2021_delivery
 # an updated 2022 dataset from ...kelp\VScanopy\data\SJI\sji_2022_mapping_project_materials
@@ -18,7 +20,7 @@ import sys
 import os
 import arcpy
 import pandas as pd
-from arcgis.features import GeoAccessor, GeoSeriesAccessor # these are used to create sedfs
+from arcgis.features import GeoAccessor, GeoSeriesAccessor # noqa: F401 # these are used to create sedfs 
 
 # project root is the folder within which the entire kelp_linear_extent module is located (2 levels up from this file)
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -26,7 +28,7 @@ print("Project working directory:")
 print(PROJECT_ROOT)
 sys.path.append(PROJECT_ROOT) # this lets the project function library be found as a module
 
-import kelp_linear_extent_code.fns as fns # project function library
+import kelp_linear_extent_code.fns as fns # noqa: E402 # project function library
 
 arcpy.env.overwriteOutput = True # overwrite outputs 
 
@@ -39,8 +41,8 @@ SCRATCH_WS = fns.config_scratch()
 # USER INPUT ----------------------------------------------------------
 
 dataset_name = "Samish_AerialSurveys"
-containers = os.path.join(PROJECT_ROOT, "LinearExtent.gdb\\kelp_containers_v2")
-cov_cat_containers = os.path.join(PROJECT_ROOT, "LinearExtent.gdb\\abundance_containers")
+containers = os.path.join(PROJECT_ROOT, "LinearExtent.gdb\\lines_and_containers\\kelp_containers_v3")
+cov_cat_containers = os.path.join(PROJECT_ROOT, "LinearExtent.gdb\\lines_and_containers\\cov_cat_containers")
 kelp_data_path = os.path.join(PROJECT_ROOT,"kelp_data_sources\\Samish_spatial_data_2021_delivery")
 
 # prep data ------------------------------------------------------------
@@ -116,16 +118,9 @@ print(fc_list)
 
 # calculate presence -------------------------------------------------------
 print("Calculating presence...")
-fns.sum_kelp_within(fc_list, containers, variable_survey_area=True)
+pres_fcs = fns.calc_presence(fc_list, containers, variable_survey_area=True)
 
-# get list of summarize within output fcs
-arcpy.env.workspace = os.path.join(SCRATCH_WS)
-sumwithin_fcs = arcpy.ListFeatureClasses("sum*")
-
-sdf_list = fns.df_from_fc(sumwithin_fcs, dataset_name)
-
-fns.reset_ws()
-
+sdf_list = fns.df_from_fc(pres_fcs, dataset_name)
 print("This is the structure of the presence sdfs:")
 print(sdf_list[1].head())
 
