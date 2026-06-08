@@ -1,4 +1,5 @@
 # Load modules
+# 2026 notes: specify /linearize/ path
 
 import subprocess
 
@@ -14,18 +15,18 @@ def run_script(py_file):
 # No need to rerun unless lines/containers/source datasets have been editted since 06/2025
 
 historical_sources = [
-    "cps_sps_reformat.py",
-    "cps_uas_synth.py",
-    "shorezone_synth.py",
-    "seattle_1984_synth.py",
-    "sps_historical_synth.py",
+    "cps_sps_boat.py",
+    "cps_uas.py",
+    "shorezone.py",
+    "seattle_1984.py",
+    "sps_historical.py",
 ]
 
 for script in historical_sources:
     print("----------------------------------")
     print(f"Running {script}...")
     try:
-        run_script(script)
+        run_script(f"linearize/{script}")
         print(f"{script} complete")
         print("----------------------------------")
     except Exception as e:
@@ -34,19 +35,18 @@ for script in historical_sources:
 # Living datasources
 # Rerun as updates occur
 living_sources = [
-    "COSTR_synth.py",
-    "AQRES_synth.py",
-    "DNR_kayak_synth.py",
-    "fixedwing_poly_synth.py",
-    "mrc_kayak_synth.py",
-    "samish_synth.py",
+    "costr_aqres.py",
+    "dnr_kayak.py",
+    "fixed_wing.py",
+    "mrc_kayak.py",
+    "samish_sji.py",
 ]
 
 for script in living_sources:
     print("----------------------------------")
     print(f"Running {script}...")
     try:
-        run_script(script)
+        run_script(f"linearize/{script}")
         print(f"{script} complete")
         print("----------------------------------")
     except Exception as e:
@@ -55,7 +55,7 @@ for script in living_sources:
 
 # Run the join script
 try:
-    run_script("kelp_synth_join.py")
+    run_script("compile_linear_data.py")
     print("Analysis complete")
 except Exception as e:
     print("!!!!!!!!!!!!!!! Unable to complete join script !!!!!!!!!!!!!!!")
