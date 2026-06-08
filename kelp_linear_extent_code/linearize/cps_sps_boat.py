@@ -43,7 +43,7 @@ sps_orig = os.path.join(PROJECT_ROOT, "kelp_data_sources\\SS_kelp.gdb\\dnr2017_s
 
 # prep data ------------------------------------------------------------
 
-print(f"Running analsysis on {cps_orig} and {sps_orig}...")
+print(f"Running analysis on {cps_orig} and {sps_orig}...")
 
 
 print(f"Copying features to {SCRATCH_WS}")
