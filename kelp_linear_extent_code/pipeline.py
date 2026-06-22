@@ -49,7 +49,8 @@ living_sources = [
     "fixed_wing.py",
     "mrc_kayak.py",
     "samish_sji.py",
-    "psrf_elliotbay.py"
+    "psrf_elliotbay.py",
+    "vnc_kayak.py"
 ]
 
 for script in living_sources:
